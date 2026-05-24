@@ -3,28 +3,29 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>PF1e GM Tool</title>
+<title>PF1e GM Command</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="monsters.js"></script>
 <style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body { background: #0d0f0e; }
-  ::-webkit-scrollbar { width: 6px; }
-  ::-webkit-scrollbar-track { background: #0d0f0e; }
-  ::-webkit-scrollbar-thumb { background: #2a2018; border-radius: 3px; }
-  ::-webkit-scrollbar-thumb:hover { background: #3a3020; }
-  input:focus { border-color: #8B5E3C !important; }
-  select option { background: #0d0f0e; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { background:#0d0f0e; }
+::-webkit-scrollbar { width:6px; }
+::-webkit-scrollbar-track { background:#0d0f0e; }
+::-webkit-scrollbar-thumb { background:#2a2018; border-radius:3px; }
+::-webkit-scrollbar-thumb:hover { background:#3a3020; }
+input:focus, select:focus, textarea:focus { border-color:#8B5E3C !important; outline:none; }
+select option { background:#0d0f0e; color:#d4c5a9; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+.fade-in { animation: fadeIn 0.2s ease; }
 </style>
 </head>
 <body>
 <div id="root"></div>
-
-<script src="monsters.js"></script>
-
-<!-- GM Tool App -->
 <script type="text/babel">
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
+
 const { useState, useEffect, useRef, useMemo } = React;
 
 // ═══════════════════════════════════════════════════════
@@ -538,44 +539,836 @@ function MonsterQuickview({ onAddToCombat }) {
 }
 
 // ═══════════════════════════════════════════════════════
-// ROOT APP
+// ENCOUNTER BUILDER
 // ═══════════════════════════════════════════════════════
 
-function App() {
-  const [tab, setTab] = useState("initiative");
-  // Shared: monsters added from quickview go to initiative tracker
-  const [pendingCombatant, setPendingCombatant] = useState(null);
+const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
-  function handleAddToCombat(monsterData) {
-    setPendingCombatant(monsterData);
-    setTab("initiative");
-    // Small UX: flash so user knows it switched
+// ═══════════════ DATA ═══════════════
+const CR_TO_XP = {"1/8":50,"1/6":65,"1/4":100,"1/3":135,"1/2":200,"1":400,"2":600,"3":800,"4":1200,"5":1600,"6":2400,"7":3200,"8":4800,"9":6400,"10":9600,"11":12800,"12":19200,"13":25600,"14":38400,"15":51200,"16":76800,"17":102400,"18":153600,"19":204800,"20":307200,"21":409600,"22":614400,"23":819200,"24":1228800,"25":1638400};
+const XP_THRESHOLDS = {"1":[50,100,150,400],"2":[100,200,300,600],"3":[150,300,450,800],"4":[200,400,625,1200],"5":[300,500,750,1600],"6":[400,750,1100,2400],"7":[500,900,1300,3200],"8":[600,1400,2000,4800],"9":[800,1600,2400,6400],"10":[1000,2000,2800,9600],"11":[1200,2400,3600,12800],"12":[1600,3000,4500,19200],"13":[2000,3800,5600,25600],"14":[2500,4500,6400,38400],"15":[3000,5500,8000,51200],"16":[3500,6500,9600,76800],"17":[4000,7500,11000,102400],"18":[5000,8500,13000,153600],"19":[5500,10000,15000,204800],"20":[6000,11000,16000,307200]};
+const PF1_CLASSES = ["Barbarian","Bard","Cleric","Druid","Fighter","Monk","Paladin","Ranger","Rogue","Sorcerer","Wizard","Alchemist","Cavalier","Gunslinger","Inquisitor","Magus","Oracle","Summoner","Witch","Ninja","Samurai","Arcanist","Bloodrager","Brawler","Hunter","Investigator","Shaman","Skald","Slayer","Swashbuckler","Warpriest","Kineticist","Medium","Mesmerist","Occultist","Psychic","Spiritualist","Shifter","Vigilante","Unchained Barbarian","Unchained Monk","Unchained Rogue","Unchained Summoner","Adept","Aristocrat","Commoner","Expert","Warrior","Arcane Archer","Arcane Trickster","Assassin","Dragon Disciple","Duelist","Eldritch Knight","Loremaster","Mystic Theurge","Pathfinder Chronicler","Shadowdancer","Antipaladin"];
+const DIFFICULTY_LABELS = ["Easy","Medium","Hard","Epic"];
+const DIFFICULTY_COLORS = ["#2ecc71","#f39c12","#e67e22","#e74c3c"];
+const STATUS_OPTS = ["Voorbereid","Actief","Voltooid","Overgeslagen"];
+const STATUS_COLORS = {"Voorbereid":"#4a9eff","Actief":"#f39c12","Voltooid":"#2ecc71","Overgeslagen":"#5a5a5a"};
+
+// ═══════════════ HELPERS ═══════════════
+function uid() { return Math.random().toString(36).slice(2,10); }
+function fmtXP(n) { return n>=1000 ? (n/1000).toFixed(n%1000===0?0:1)+"k" : String(n); }
+
+function crToNum(cr) {
+  if(cr==="1/8") return 0.125;
+  if(cr==="1/6") return 0.167;
+  if(cr==="1/4") return 0.25;
+  if(cr==="1/3") return 0.333;
+  if(cr==="1/2") return 0.5;
+  return parseFloat(cr)||0;
+}
+
+function calcEncounterXP(monsters) {
+  // Sum raw XP
+  let total = 0;
+  for(const m of monsters) {
+    const xp = CR_TO_XP[m.cr] || 0;
+    total += xp * (m.count||1);
+  }
+  return total;
+}
+
+function getMonsterCount(monsters) {
+  return monsters.reduce((s,m)=>s+(m.count||1),0);
+}
+
+function applyMultiplier(totalXP, monsterCount) {
+  // PF1e encounter multipliers based on number of monsters
+  let mult = 1;
+  if(monsterCount===1) mult=1;
+  else if(monsterCount===2) mult=1.5;
+  else if(monsterCount<=6) mult=2;
+  else if(monsterCount<=10) mult=2.5;
+  else if(monsterCount<=14) mult=3;
+  else mult=4;
+  return Math.round(totalXP*mult);
+}
+
+function getDifficulty(adjustedXP, party) {
+  if(!party||party.members.length===0) return null;
+  // Average party level
+  const avgLevel = Math.round(party.members.reduce((s,m)=>s+(m.level||1),0)/party.members.length);
+  const size = party.members.length;
+  const thresh = XP_THRESHOLDS[String(Math.min(20,Math.max(1,avgLevel)))];
+  if(!thresh) return null;
+  const xpPerPlayer = adjustedXP / size;
+  if(xpPerPlayer < thresh[0]) return {idx:-1, label:"Trivial", color:"#5a5a6a"};
+  if(xpPerPlayer < thresh[1]) return {idx:0, label:"Easy", color:DIFFICULTY_COLORS[0]};
+  if(xpPerPlayer < thresh[2]) return {idx:1, label:"Medium", color:DIFFICULTY_COLORS[1]};
+  if(xpPerPlayer < thresh[3]) return {idx:2, label:"Hard", color:DIFFICULTY_COLORS[2]};
+  return {idx:3, label:"Epic", color:DIFFICULTY_COLORS[3]};
+}
+
+function getThresholds(party) {
+  if(!party||party.members.length===0) return null;
+  const avgLevel = Math.round(party.members.reduce((s,m)=>s+(m.level||1),0)/party.members.length);
+  const size = party.members.length;
+  const thresh = XP_THRESHOLDS[String(Math.min(20,Math.max(1,avgLevel)))];
+  if(!thresh) return null;
+  return thresh.map(t=>t*size);
+}
+
+// ═══════════════ STYLES ═══════════════
+const textC=text, panel="#111310"; // reuse shared constants
+
+const EB = {
+  app:{height:"100vh",display:"flex",flexDirection:"column",fontFamily:"'Crimson Text',Georgia,serif",color:textC,background:"#0d0f0e",overflow:"hidden"},
+  topBar:{background:"linear-gradient(135deg,#1a0e05,#0d0f0e)",borderBottom:`1px solid ${border}`,padding:"10px 20px",display:"flex",alignItems:"center",gap:12,flexShrink:0},
+  title:{fontFamily:"'Cinzel','Palatino Linotype',serif",fontSize:18,fontWeight:700,color:gold,letterSpacing:"0.08em",textShadow:"0 0 20px rgba(200,149,42,0.4)"},
+  sub:{fontSize:11,color:muted,letterSpacing:"0.15em"},
+  body:{flex:1,display:"flex",overflow:"hidden"},
+  // Panels
+  leftCol:{width:260,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${border}`,background:"#0f1110",overflow:"hidden"},
+  midCol:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",borderRight:`1px solid ${border}`},
+  rightCol:{width:320,flexShrink:0,display:"flex",flexDirection:"column",overflow:"hidden"},
+  panelHead:{background:"linear-gradient(90deg,#1a1208,#111310)",borderBottom:`1px solid ${border}`,padding:"9px 14px",display:"flex",alignItems:"center",gap:8,flexShrink:0},
+  panelTitle:{fontFamily:"'Cinzel',serif",fontSize:12,letterSpacing:"0.12em",color:gold,textTransform:"uppercase"},
+  scrollArea:{flex:1,overflowY:"auto",padding:"10px"},
+  // Inputs
+  inp:{width:"100%",background:"#0a0c0b",border:`1px solid ${border}`,borderRadius:6,padding:"6px 10px",color:textC,fontFamily:"inherit",fontSize:13,boxSizing:"border-box"},
+  sel:{width:"100%",background:"#0a0c0b",border:`1px solid ${border}`,borderRadius:6,padding:"6px 10px",color:textC,fontFamily:"inherit",fontSize:13,boxSizing:"border-box"},
+  textarea:{width:"100%",background:"#0a0c0b",border:`1px solid ${border}`,borderRadius:6,padding:"7px 10px",color:textC,fontFamily:"inherit",fontSize:12,boxSizing:"border-box",resize:"vertical",minHeight:60},
+  lbl:{fontSize:10,color:muted,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:3,display:"block"},
+  // Buttons
+  btn:(v)=>({padding:"6px 13px",borderRadius:6,fontSize:11,fontFamily:"'Cinzel',serif",letterSpacing:"0.06em",cursor:"pointer",border:"1px solid",transition:"all 0.15s",
+    ...(v==="gold"?{background:"rgba(139,94,60,0.2)",borderColor:goldDim,color:gold}:
+        v==="green"?{background:"rgba(30,60,30,0.3)",borderColor:"#3a5a3a",color:"#7ab87a"}:
+        v==="red"?{background:"rgba(80,20,20,0.2)",borderColor:"#4a1818",color:"#c0392b"}:
+        v==="blue"?{background:"rgba(30,50,80,0.3)",borderColor:"#3a5a8a",color:"#7aaad8"}:
+        {background:"transparent",borderColor:border,color:muted})}),
+  // Cards
+  card:{background:panel,border:`1px solid ${border}`,borderRadius:8,marginBottom:8,overflow:"hidden",cursor:"pointer",transition:"border-color 0.15s"},
+  cardActive:{borderColor:goldDim},
+  cardHead:{padding:"9px 12px",display:"flex",alignItems:"center",gap:8},
+  // Encounter status
+  diffBadge:(color)=>({display:"inline-flex",alignItems:"center",padding:"2px 8px",borderRadius:4,fontSize:10,fontFamily:"'Cinzel',serif",letterSpacing:"0.08em",background:`${color}18`,border:`1px solid ${color}55`,color}),
+};
+
+// ═══════════════ MONSTER SEARCH ═══════════════
+function MonsterSearch({ onAdd }) {
+  const [q, setQ] = useState("");
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  const monsters = window.MONSTERS||[];
+
+  const results = useMemo(()=>{
+    if(q.length<2) return [];
+    const ql=q.toLowerCase();
+    return monsters.filter(m=>m.name.toLowerCase().includes(ql)).slice(0,8);
+  },[q]);
+
+  useEffect(()=>{
+    setOpen(results.length>0);
+  },[results]);
+
+  useEffect(()=>{
+    function handler(e){ if(ref.current&&!ref.current.contains(e.target)) setOpen(false); }
+    document.addEventListener("mousedown",handler);
+    return()=>document.removeEventListener("mousedown",handler);
+  },[]);
+
+  return (
+    <div ref={ref} style={{position:"relative"}}>
+      <input style={EB.inp} placeholder="Zoek monster om toe te voegen..." value={q}
+        onChange={e=>{setQ(e.target.value);}} onFocus={()=>results.length>0&&setOpen(true)}/>
+      {open&&(
+        <div style={{position:"absolute",top:"100%",left:0,right:0,background:"#0f1110",border:`1px solid ${goldDim}`,borderRadius:6,zIndex:50,maxHeight:260,overflowY:"auto",marginTop:3}}>
+          {results.map(m=>(
+            <div key={m.name+m.source} style={{padding:"7px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:8,borderBottom:`1px solid ${border}`}}
+              onMouseDown={()=>{onAdd(m);setQ("");setOpen(false);}}>
+              <span style={{fontSize:10,fontFamily:"'Cinzel',serif",padding:"1px 5px",borderRadius:3,background:"#1a1208",border:`1px solid ${border}`,color:gold,minWidth:26,textAlign:"center"}}>{m.cr}</span>
+              <div>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:textC}}>{m.name}</div>
+                <div style={{fontSize:10,color:dimmed,fontStyle:"italic"}}>{m.size} {m.type} · {m.source}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════ ENCOUNTER DETAIL ═══════════════
+function EncounterDetail({ encounter, party, onChange, onSendToTracker }) {
+  if(!encounter) return (
+    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",color:dimmed,textAlign:"center"}}>
+      <div style={{fontSize:48,marginBottom:16,opacity:0.3}}>⚔️</div>
+      <div style={{fontFamily:"'Cinzel',serif",fontSize:14,letterSpacing:"0.1em"}}>Selecteer een encounter</div>
+      <div style={{fontSize:12,marginTop:8,color:"#2a1e10"}}>Of maak een nieuwe aan</div>
+    </div>
+  );
+
+  const rawXP = calcEncounterXP(encounter.monsters||[]);
+  const monCount = getMonsterCount(encounter.monsters||[]);
+  const adjXP = applyMultiplier(rawXP, monCount);
+  const diff = getDifficulty(adjXP, party);
+  const thresholds = getThresholds(party);
+  const partySize = party?.members?.length||0;
+  const avgLevel = partySize>0 ? Math.round(party.members.reduce((s,m)=>s+(m.level||1),0)/partySize) : 1;
+
+  function updateField(field,val) { onChange({...encounter,[field]:val}); }
+  function addMonster(m) {
+    const existing = (encounter.monsters||[]).findIndex(x=>x.name===m.name&&x.cr===m.cr);
+    if(existing>=0) {
+      const updated=[...(encounter.monsters||[])];
+      updated[existing]={...updated[existing],count:(updated[existing].count||1)+1};
+      onChange({...encounter,monsters:updated});
+    } else {
+      onChange({...encounter,monsters:[...(encounter.monsters||[]),{id:uid(),name:m.name,cr:m.cr,count:1,hp:m.hp,ac:m.ac,init:m.init,con:m.con}]});
+    }
+  }
+  function removeMonster(id) { onChange({...encounter,monsters:(encounter.monsters||[]).filter(m=>m.id!==id)}); }
+  function updateCount(id,delta) {
+    const updated=(encounter.monsters||[]).map(m=>m.id===id?{...m,count:Math.max(1,(m.count||1)+delta)}:m);
+    onChange({...encounter,monsters:updated});
+  }
+
+  // XP bar calculation
+  const barMax = thresholds ? thresholds[3]*1.2 : adjXP*2||1;
+  const barPct = Math.min(100,(adjXP/barMax)*100);
+  const threshPcts = thresholds ? thresholds.map(t=>Math.min(100,(t/barMax)*100)) : [];
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      {/* Header */}
+      <div style={{...EB.panelHead,borderBottom:`1px solid ${border}`,flexShrink:0}}>
+        <div style={{flex:1}}>
+          <input style={{...EB.inp,fontFamily:"'Cinzel',serif",fontSize:15,color:gold,background:"transparent",border:"none",padding:"2px 0"}}
+            value={encounter.name} onChange={e=>updateField("name",e.target.value)} placeholder="Encounter naam..."/>
+        </div>
+        <select style={{...EB.sel,width:"auto",fontSize:11}} value={encounter.status||"Voorbereid"} onChange={e=>updateField("status",e.target.value)}>
+          {STATUS_OPTS.map(s=><option key={s}>{s}</option>)}
+        </select>
+        <button style={EB.btn("green")} onClick={()=>onSendToTracker(encounter)} title="Stuur naar Initiative Tracker">
+          ▶ Naar Tracker
+        </button>
+      </div>
+
+      <div style={{flex:1,overflowY:"auto",padding:"14px 16px"}}>
+        {/* Difficulty summary */}
+        {party && (
+          <div style={{background:"#0d0f0e",border:`1px solid ${border}`,borderRadius:8,padding:"12px 14px",marginBottom:14}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+              <div style={{flex:1}}>
+                <div style={{fontSize:10,color:muted,textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:2}}>Encounter moeilijkheid</div>
+                <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+                  <span style={{fontFamily:"'Cinzel',serif",fontSize:22,color:diff?.color||dimmed}}>{diff?.label||"—"}</span>
+                  {diff&&<span style={{fontSize:12,color:muted}}>voor {partySize} spelers (gem. level {avgLevel})</span>}
+                </div>
+              </div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:10,color:muted,textTransform:"uppercase",letterSpacing:"0.1em"}}>Gecorrigeerde XP</div>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:20,color:gold}}>{fmtXP(adjXP)}</div>
+                <div style={{fontSize:10,color:dimmed}}>Basis: {fmtXP(rawXP)} × {(adjXP/Math.max(1,rawXP)).toFixed(1)}</div>
+              </div>
+            </div>
+            {/* XP bar */}
+            <div style={{height:8,background:"#1a1a1a",borderRadius:4,position:"relative",overflow:"visible"}}>
+              {threshPcts.map((pct,i)=>(
+                <div key={i} style={{position:"absolute",left:`${pct}%`,top:-2,height:12,width:1,background:`${DIFFICULTY_COLORS[i]}88`,zIndex:2}}/>
+              ))}
+              <div style={{height:"100%",borderRadius:4,background:diff?.color||"#3a3a3a",width:`${barPct}%`,transition:"width 0.4s",minWidth:adjXP>0?4:0}}/>
+            </div>
+            {thresholds&&(
+              <div style={{display:"flex",gap:8,marginTop:6,flexWrap:"wrap"}}>
+                {DIFFICULTY_LABELS.map((lbl,i)=>(
+                  <div key={lbl} style={{fontSize:10,color:DIFFICULTY_COLORS[i]}}>
+                    {lbl}: {fmtXP(thresholds[i])}
+                  </div>
+                ))}
+              </div>
+            )}
+            {!party&&<div style={{fontSize:11,color:dimmed,marginTop:4}}>Selecteer een party om moeilijkheid te berekenen</div>}
+          </div>
+        )}
+
+        {/* Monster list */}
+        <div style={{marginBottom:12}}>
+          <div style={{fontSize:11,color:gold,letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:"'Cinzel',serif",marginBottom:8}}>Monsters</div>
+          {(encounter.monsters||[]).length===0 && (
+            <div style={{textAlign:"center",padding:"20px",color:dimmed,fontSize:12,border:`1px dashed ${border}`,borderRadius:6}}>
+              Geen monsters — voeg toe via zoekbalk
+            </div>
+          )}
+          {(encounter.monsters||[]).map(m=>{
+            const xpEach = CR_TO_XP[m.cr]||0;
+            return (
+              <div key={m.id} className="fade-in" style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"#0d0f0e",border:`1px solid ${border}`,borderRadius:6,marginBottom:5}}>
+                <span style={{fontSize:10,fontFamily:"'Cinzel',serif",padding:"2px 6px",borderRadius:3,background:"#1a1208",border:`1px solid ${border}`,color:gold,minWidth:28,textAlign:"center"}}>{m.cr}</span>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:textC,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</div>
+                  <div style={{fontSize:10,color:dimmed}}>{fmtXP(xpEach)} XP elk · AC {m.ac||"?"} · HP {m.hp||"?"}</div>
+                </div>
+                <div style={{display:"flex",alignItems:"center",gap:4}}>
+                  <button style={{...EB.btn(""),padding:"2px 7px",fontSize:13}} onClick={()=>updateCount(m.id,-1)}>−</button>
+                  <span style={{fontFamily:"'Cinzel',serif",fontSize:14,color:textC,minWidth:20,textAlign:"center"}}>{m.count||1}</span>
+                  <button style={{...EB.btn(""),padding:"2px 7px",fontSize:13}} onClick={()=>updateCount(m.id,1)}>+</button>
+                </div>
+                <div style={{fontSize:11,color:muted,minWidth:40,textAlign:"right"}}>{fmtXP(xpEach*(m.count||1))}</div>
+                <button style={{...EB.btn("red"),padding:"2px 6px",fontSize:11}} onClick={()=>removeMonster(m.id)}>✕</button>
+              </div>
+            );
+          })}
+          <div style={{marginTop:8}}>
+            <MonsterSearch onAdd={addMonster}/>
+          </div>
+          {/* Manual add */}
+          <div style={{marginTop:6}}>
+            <ManualMonsterAdd onAdd={addMonster}/>
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div>
+          <label style={EB.lbl}>GM Notities</label>
+          <textarea style={EB.textarea} value={encounter.notes||""} onChange={e=>updateField("notes",e.target.value)} placeholder="Locatie, triggers, tactiek, rewards..."/>
+        </div>
+
+        {/* Loot */}
+        <div style={{marginTop:10}}>
+          <label style={EB.lbl}>Loot / Rewards</label>
+          <textarea style={{...EB.textarea,minHeight:44}} value={encounter.loot||""} onChange={e=>updateField("loot",e.target.value)} placeholder="Gold, items, XP reward..."/>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ManualMonsterAdd({ onAdd }) {
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState("");
+  const [cr, setCr] = useState("1");
+  const CRS = ["1/8","1/6","1/4","1/3","1/2","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"];
+  if(!open) return (
+    <button style={{...EB.btn(""),width:"100%",marginTop:4,fontSize:11}} onClick={()=>setOpen(true)}>+ Handmatig toevoegen</button>
+  );
+  return (
+    <div style={{display:"flex",gap:6,marginTop:4,alignItems:"center"}}>
+      <input style={{...EB.inp,flex:1}} placeholder="Naam..." value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&name.trim()){onAdd({name:name.trim(),cr,hp:0,ac:0,init:0,con:10});setName("");setOpen(false);}}}/>
+      <select style={{...EB.sel,width:70}} value={cr} onChange={e=>setCr(e.target.value)}>
+        {CRS.map(c=><option key={c} value={c}>CR {c}</option>)}
+      </select>
+      <button style={EB.btn("gold")} onClick={()=>{if(name.trim()){onAdd({name:name.trim(),cr,hp:0,ac:0,init:0,con:10});setName("");setOpen(false);}}}>+</button>
+      <button style={EB.btn("")} onClick={()=>{setOpen(false);setName("");}}>✕</button>
+    </div>
+  );
+}
+
+// ═══════════════ SESSION LIST ═══════════════
+function SessionList({ sessions, activeSessionId, onSelect, onCreate, onDelete }) {
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      <div style={{...EB.panelHead}}>
+        <span style={EB.panelTitle}>Sessies</span>
+        <button style={{...EB.btn("gold"),marginLeft:"auto",padding:"4px 10px",fontSize:10}} onClick={onCreate}>+ Nieuw</button>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"8px"}}>
+        {sessions.length===0&&<div style={{textAlign:"center",color:dimmed,fontSize:12,padding:"30px 10px"}}>Geen sessies<br/>Maak een nieuwe aan</div>}
+        {sessions.map(s=>(
+          <div key={s.id} style={{...EB.card,...(s.id===activeSessionId?EB.cardActive:{})}}
+            onClick={()=>onSelect(s.id)}>
+            <div style={EB.cardHead}>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:s.id===activeSessionId?gold:textC,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
+                <div style={{fontSize:10,color:dimmed,marginTop:2}}>{s.date||"Geen datum"} · {(s.encounters||[]).length} encounters</div>
+              </div>
+              <button style={{...EB.btn("red"),padding:"2px 6px",fontSize:10}} onClick={e=>{e.stopPropagation();onDelete(s.id);}}>✕</button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════ ENCOUNTER LIST ═══════════════
+function EncounterList({ session, activeEncounterId, onSelect, onCreate, onDelete, onDuplicate, party }) {
+  if(!session) return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      <div style={EB.panelHead}><span style={EB.panelTitle}>Encounters</span></div>
+      <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:dimmed,fontSize:12}}>Selecteer een sessie</div>
+    </div>
+  );
+
+  const totalXP = (session.encounters||[]).reduce((s,e)=>{
+    const raw=calcEncounterXP(e.monsters||[]);
+    return s+applyMultiplier(raw,getMonsterCount(e.monsters||[]));
+  },0);
+
+  return (
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      <div style={EB.panelHead}>
+        <div style={{flex:1}}>
+          <div style={EB.panelTitle}>{session.name}</div>
+          <div style={{fontSize:10,color:dimmed,marginTop:1}}>Totaal ~{fmtXP(totalXP)} XP · {(session.encounters||[]).length} encounters</div>
+        </div>
+        <button style={{...EB.btn("gold"),padding:"4px 10px",fontSize:10}} onClick={onCreate}>+ Nieuw</button>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:"8px"}}>
+        {(session.encounters||[]).length===0&&(
+          <div style={{textAlign:"center",color:dimmed,fontSize:12,padding:"30px 10px"}}>Geen encounters<br/>Maak een nieuwe aan</div>
+        )}
+        {(session.encounters||[]).map(enc=>{
+          const raw=calcEncounterXP(enc.monsters||[]);
+          const adj=applyMultiplier(raw,getMonsterCount(enc.monsters||[]));
+          const diff=getDifficulty(adj,party);
+          const sc=STATUS_COLORS[enc.status]||"#5a5a5a";
+          return (
+            <div key={enc.id} style={{...EB.card,...(enc.id===activeEncounterId?EB.cardActive:{})}}
+              onClick={()=>onSelect(enc.id)}>
+              <div style={{...EB.cardHead,gap:6}}>
+                <div style={{flex:1,minWidth:0}}>
+                  <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:enc.id===activeEncounterId?gold:textC,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{enc.name||"Naamloze encounter"}</div>
+                  <div style={{display:"flex",gap:6,marginTop:3,alignItems:"center",flexWrap:"wrap"}}>
+                    <span style={{...EB.diffBadge(sc),fontSize:9}}>{enc.status||"Voorbereid"}</span>
+                    {diff&&<span style={{...EB.diffBadge(diff.color),fontSize:9}}>{diff.label}</span>}
+                    {(enc.monsters||[]).length>0&&<span style={{fontSize:10,color:dimmed}}>{getMonsterCount(enc.monsters)} monsters · {fmtXP(adj)} XP</span>}
+                  </div>
+                </div>
+                <div style={{display:"flex",gap:3}}>
+                  <button style={{...EB.btn(""),padding:"2px 5px",fontSize:10}} title="Dupliceer" onClick={e=>{e.stopPropagation();onDuplicate(enc.id);}}>⎘</button>
+                  <button style={{...EB.btn("red"),padding:"2px 6px",fontSize:10}} onClick={e=>{e.stopPropagation();onDelete(enc.id);}}>✕</button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ═══════════════ PARTY PANEL ═══════════════
+function PartyPanel({ parties, activePartyId, onSelect, onCreate, onChange, onDelete }) {
+  const [editId, setEditId] = useState(null);
+  const activeParty = parties.find(p=>p.id===activePartyId);
+
+  function addMember(partyId) {
+    onChange(partyId, p=>({...p,members:[...(p.members||[]),{id:uid(),name:"",level:1,cls:"Fighter"}]}));
+  }
+  function removeMember(partyId, memberId) {
+    onChange(partyId, p=>({...p,members:p.members.filter(m=>m.id!==memberId)}));
+  }
+  function updateMember(partyId, memberId, field, val) {
+    onChange(partyId, p=>({...p,members:p.members.map(m=>m.id===memberId?{...m,[field]:val}:m)}));
   }
 
   return (
-    <div style={S.app}>
-      <div style={S.topBar}>
-        <div>
-          <div style={S.appTitle}>⚔️ GM COMMAND</div>
-          <div style={S.appSub}>Pathfinder 1e · {(window.MONSTERS||[]).length.toLocaleString()} monsters geladen</div>
-        </div>
-        <div style={S.tabs}>
-          {[["initiative","⚔️ Initiative Tracker"],["monsters","📖 Monster Quickview"]].map(([key,label])=>(
-            <button key={key} style={{...S.tabBtn,...(tab===key?S.tabBtnActive:{})}} onClick={()=>setTab(key)}>{label}</button>
+    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+      <div style={EB.panelHead}>
+        <span style={EB.panelTitle}>Party</span>
+        <button style={{...EB.btn("gold"),marginLeft:"auto",padding:"4px 10px",fontSize:10}} onClick={onCreate}>+ Nieuw</button>
+      </div>
+      <div style={{padding:"8px",borderBottom:`1px solid ${border}`,flexShrink:0}}>
+        <select style={EB.sel} value={activePartyId||""} onChange={e=>onSelect(e.target.value)}>
+          <option value="">— Selecteer party —</option>
+          {parties.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </div>
+      {activeParty&&(
+        <div style={{flex:1,overflowY:"auto",padding:"10px"}}>
+          {/* Party name */}
+          <div style={{marginBottom:10}}>
+            <label style={EB.lbl}>Party naam</label>
+            <input style={EB.inp} value={activeParty.name} onChange={e=>onChange(activeParty.id,p=>({...p,name:e.target.value}))}/>
+          </div>
+          {/* Members */}
+          <div style={{fontSize:11,color:gold,letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:"'Cinzel',serif",marginBottom:6}}>
+            Leden ({(activeParty.members||[]).length})
+          </div>
+          {(activeParty.members||[]).map(m=>(
+            <div key={m.id} style={{display:"grid",gridTemplateColumns:"1fr 36px 1fr auto",gap:5,marginBottom:6,alignItems:"center"}}>
+              <input style={{...EB.inp,fontSize:12}} placeholder="Naam" value={m.name} onChange={e=>updateMember(activeParty.id,m.id,"name",e.target.value)}/>
+              <input style={{...EB.inp,fontSize:12,textAlign:"center",padding:"6px 4px"}} type="number" min="1" max="20" value={m.level} onChange={e=>updateMember(activeParty.id,m.id,"level",parseInt(e.target.value)||1)}/>
+              <select style={{...EB.sel,fontSize:11}} value={m.cls} onChange={e=>updateMember(activeParty.id,m.id,"cls",e.target.value)}>
+                {PF1_CLASSES.map(c=><option key={c}>{c}</option>)}
+              </select>
+              <button style={{...EB.btn("red"),padding:"2px 6px",fontSize:11}} onClick={()=>removeMember(activeParty.id,m.id)}>✕</button>
+            </div>
           ))}
+          <button style={{...EB.btn("green"),width:"100%",marginTop:4}} onClick={()=>addMember(activeParty.id)}>+ Lid toevoegen</button>
+          {/* Summary */}
+          {(activeParty.members||[]).length>0&&(
+            <div style={{marginTop:10,padding:"8px 10px",background:"#0d0f0e",border:`1px solid ${border}`,borderRadius:6,fontSize:11,color:muted}}>
+              {activeParty.members.length} spelers ·{" "}
+              Gem. level {(activeParty.members.reduce((s,m)=>s+(m.level||1),0)/activeParty.members.length).toFixed(1)}
+            </div>
+          )}
+          <button style={{...EB.btn("red"),width:"100%",marginTop:8,fontSize:10}} onClick={()=>onDelete(activeParty.id)}>Party verwijderen</button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ═══════════════ ROOT APP ═══════════════
+const EB_STORAGE_KEY = "pf1e-encounter-builder";
+
+function loadEncState() {
+  try {
+    const s = localStorage.getItem(EB_STORAGE_KEY);
+    if(s) return JSON.parse(s);
+  } catch{}
+  return null;
+}
+
+function EncounterBuilder({ onShowToast }) {
+  const [sessions, setSessions] = useState([]);
+  const [parties, setParties] = useState([]);
+  const [activeSessionId, setActiveSessionId] = useState(null);
+  const [activeEncounterId, setActiveEncounterId] = useState(null);
+  const [activePartyId, setActivePartyId] = useState(null);
+  const [rightTab, setRightTab] = useState("party");
+
+  // Load
+  useEffect(()=>{
+    const s=loadEncState();
+    if(s){
+      setSessions(s.sessions||[]);
+      setParties(s.parties||[]);
+      setActiveSessionId(s.activeSessionId||null);
+      setActiveEncounterId(s.activeEncounterId||null);
+      setActivePartyId(s.activePartyId||null);
+    }
+  },[]);
+
+  // Save
+  useEffect(()=>{
+    try{ localStorage.setItem(EB_STORAGE_KEY,JSON.stringify({sessions,parties,activeSessionId,activeEncounterId,activePartyId})); }catch{}
+  },[sessions,parties,activeSessionId,activeEncounterId,activePartyId]);
+
+  function showToast(msg,color="#2ecc71") { if(onShowToast) onShowToast(msg,color); }
+
+  // Sessions
+  function createSession() {
+    const s={id:uid(),name:`Sessie ${sessions.length+1}`,date:new Date().toLocaleDateString("nl"),encounters:[]};
+    setSessions(p=>[s,...p]);
+    setActiveSessionId(s.id);
+    setActiveEncounterId(null);
+  }
+  function deleteSession(id) {
+    if(!window.confirm("Sessie verwijderen?")) return;
+    setSessions(p=>p.filter(s=>s.id!==id));
+    if(activeSessionId===id){setActiveSessionId(null);setActiveEncounterId(null);}
+  }
+  function updateSession(id,fn) { setSessions(p=>p.map(s=>s.id===id?fn(s):s)); }
+
+  // Encounters
+  const activeSession = sessions.find(s=>s.id===activeSessionId);
+  function createEncounter() {
+    if(!activeSessionId) return;
+    const e={id:uid(),name:`Encounter ${((activeSession?.encounters||[]).length+1)}`,status:"Voorbereid",monsters:[],notes:"",loot:""};
+    updateSession(activeSessionId,s=>({...s,encounters:[...(s.encounters||[]),e]}));
+    setActiveEncounterId(e.id);
+  }
+  function deleteEncounter(id) {
+    updateSession(activeSessionId,s=>({...s,encounters:s.encounters.filter(e=>e.id!==id)}));
+    if(activeEncounterId===id) setActiveEncounterId(null);
+  }
+  function duplicateEncounter(id) {
+    const enc=activeSession?.encounters?.find(e=>e.id===id);
+    if(!enc) return;
+    const copy={...enc,id:uid(),name:enc.name+" (kopie)",status:"Voorbereid"};
+    updateSession(activeSessionId,s=>({...s,encounters:[...(s.encounters||[]),copy]}));
+    setActiveEncounterId(copy.id);
+    showToast("Encounter gedupliceerd");
+  }
+  function updateEncounter(updated) {
+    updateSession(activeSessionId,s=>({...s,encounters:s.encounters.map(e=>e.id===updated.id?updated:e)}));
+  }
+
+  const activeEncounter = activeSession?.encounters?.find(e=>e.id===activeEncounterId);
+  const activeParty = parties.find(p=>p.id===activePartyId);
+
+  // Parties
+  function createParty() {
+    const p={id:uid(),name:`Party ${parties.length+1}`,members:[]};
+    setParties(prev=>[...prev,p]);
+    setActivePartyId(p.id);
+  }
+  function deleteParty(id) {
+    if(!window.confirm("Party verwijderen?")) return;
+    setParties(p=>p.filter(x=>x.id!==id));
+    if(activePartyId===id) setActivePartyId(null);
+  }
+  function updateParty(id,fn) { setParties(p=>p.map(x=>x.id===id?fn(x):x)); }
+
+  function sendToTracker(enc) {
+    // Store in localStorage for initiative tracker to pick up
+    const combatants = (enc.monsters||[]).flatMap(m=>
+      Array.from({length:m.count||1},(_,i)=>({
+        id:uid(),
+        name:m.count>1?`${m.name} ${i+1}`:m.name,
+        type:"Enemy",
+        initBonus:m.init||0,
+        initiative:0,
+        hpMax:m.hp||0,
+        hpCurrent:m.hp||0,
+        ac:m.ac||10,
+        conScore:m.con||10,
+        conditions:[],
+      }))
+    );
+    // Add party members if available
+    if(activeParty) {
+      activeParty.members.forEach(m=>{
+        combatants.push({id:uid(),name:m.name||m.cls,type:"PC",initBonus:0,initiative:0,hpMax:0,hpCurrent:0,ac:10,conScore:10,conditions:[]});
+      });
+    }
+    localStorage.setItem("pf1e-gm-tracker-import",JSON.stringify({combatants,timestamp:Date.now()}));
+    showToast(`${combatants.length} deelnemers klaar voor Initiative Tracker ✓`);
+  }
+
+  // Export/import
+  function exportData() {
+    const data=JSON.stringify({sessions,parties},null,2);
+    const blob=new Blob([data],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");
+    a.href=url;a.download="pf1e-encounters.json";a.click();
+    URL.revokeObjectURL(url);
+  }
+  function importData(e) {
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=ev=>{
+      try{
+        const d=JSON.parse(ev.target.result);
+        if(d.sessions) setSessions(prev=>[...prev,...d.sessions]);
+        if(d.parties) setParties(prev=>[...prev,...d.parties]);
+        showToast("Data geïmporteerd ✓");
+      }catch{showToast("Fout bij importeren","#e74c3c");}
+    };
+    reader.readAsText(file);
+  }
+
+  return (
+    <div style={EB.app}>
+              </div>
+      )}
+
+      {/* Top bar */}
+      <div style={EB.topBar}>
+        <div>
+          <div style={EB.title}>🗺️ ENCOUNTER BUILDER</div>
+          <div style={EB.sub}>Pathfinder 1e · Sessie & Encounter Planning</div>
+        </div>
+        <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
+          <button style={{...EB.btn("blue"),fontSize:11}} onClick={exportData}>⬇ Export JSON</button>
+          <label style={{...EB.btn(""),fontSize:11,cursor:"pointer"}}>
+            ⬆ Import JSON
+            <input type="file" accept=".json" style={{display:"none"}} onChange={importData}/>
+          </label>
         </div>
       </div>
-      <div style={S.content}>
-        {tab==="initiative"
-          ? <InitiativeTracker pendingCombatant={pendingCombatant} onPendingConsumed={()=>setPendingCombatant(null)}/>
-          : <MonsterQuickview onAddToCombat={handleAddToCombat}/>
-        }
+
+      {/* Body — 4 columns */}
+      <div style={EB.body}>
+        {/* Col 1: Sessions */}
+        <div style={{...EB.leftCol,width:200}}>
+          <SessionList sessions={sessions} activeSessionId={activeSessionId}
+            onSelect={id=>{setActiveSessionId(id);setActiveEncounterId(null);}}
+            onCreate={createSession} onDelete={deleteSession}/>
+        </div>
+
+        {/* Col 2: Encounters in session */}
+        <div style={{...EB.leftCol,width:230}}>
+          <EncounterList session={activeSession} activeEncounterId={activeEncounterId}
+            onSelect={setActiveEncounterId} onCreate={createEncounter}
+            onDelete={deleteEncounter} onDuplicate={duplicateEncounter} party={activeParty}/>
+        </div>
+
+        {/* Col 3: Encounter detail */}
+        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",borderRight:`1px solid ${border}`}}>
+          <EncounterDetail encounter={activeEncounter} party={activeParty}
+            onChange={updateEncounter} onSendToTracker={sendToTracker}/>
+        </div>
+
+        {/* Col 4: Party + session meta */}
+        <div style={{width:280,flexShrink:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+          {/* Tabs */}
+          <div style={{display:"flex",borderBottom:`1px solid ${border}`,flexShrink:0}}>
+            {[["party","👥 Party"],["session","📅 Sessie"]].map(([k,lbl])=>(
+              <button key={k} style={{...EB.btn(""),flex:1,borderRadius:0,border:"none",borderBottom:`2px solid ${rightTab===k?gold:"transparent"}`,color:rightTab===k?gold:muted,background:rightTab===k?"rgba(200,149,42,0.05)":"transparent",padding:"8px",fontSize:11}}
+                onClick={()=>setRightTab(k)}>{lbl}</button>
+            ))}
+          </div>
+          {rightTab==="party"&&(
+            <PartyPanel parties={parties} activePartyId={activePartyId}
+              onSelect={setActivePartyId} onCreate={createParty}
+              onChange={updateParty} onDelete={deleteParty}/>
+          )}
+          {rightTab==="session"&&activeSession&&(
+            <div style={{flex:1,overflowY:"auto",padding:"12px"}}>
+              <div style={{marginBottom:10}}>
+                <label style={EB.lbl}>Sessie naam</label>
+                <input style={EB.inp} value={activeSession.name} onChange={e=>updateSession(activeSessionId,s=>({...s,name:e.target.value}))}/>
+              </div>
+              <div style={{marginBottom:10}}>
+                <label style={EB.lbl}>Datum</label>
+                <input style={EB.inp} type="date" value={activeSession.date||""} onChange={e=>updateSession(activeSessionId,s=>({...s,date:e.target.value}))}/>
+              </div>
+              <div style={{marginBottom:10}}>
+                <label style={EB.lbl}>Sessie notities</label>
+                <textarea style={{...EB.textarea,minHeight:100}} value={activeSession.notes||""} onChange={e=>updateSession(activeSessionId,s=>({...s,notes:e.target.value}))} placeholder="Verhaallijnen, player hooks, vorige sessie recap..."/>
+              </div>
+              {/* Session XP summary */}
+              <div style={{background:"#0d0f0e",border:`1px solid ${border}`,borderRadius:6,padding:"10px 12px",fontSize:12}}>
+                <div style={{fontFamily:"'Cinzel',serif",fontSize:11,color:gold,letterSpacing:"0.1em",marginBottom:8}}>SESSIE OVERZICHT</div>
+                {(activeSession.encounters||[]).map(enc=>{
+                  const raw=calcEncounterXP(enc.monsters||[]);
+                  const adj=applyMultiplier(raw,getMonsterCount(enc.monsters||[]));
+                  const diff=getDifficulty(adj,activeParty);
+                  const sc=STATUS_COLORS[enc.status]||"#5a5a5a";
+                  return(
+                    <div key={enc.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",borderBottom:`1px solid ${border}`}}>
+                      <div style={{display:"flex",alignItems:"center",gap:6}}>
+                        <span style={{width:6,height:6,borderRadius:"50%",background:sc,display:"inline-block"}}/>
+                        <span style={{fontSize:11,color:textC,maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{enc.name}</span>
+                      </div>
+                      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                        {diff&&<span style={{fontSize:9,color:diff.color}}>{diff.label}</span>}
+                        <span style={{fontSize:11,color:muted}}>{fmtXP(adj)}</span>
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontFamily:"'Cinzel',serif",fontSize:12}}>
+                  <span style={{color:muted}}>Totaal XP</span>
+                  <span style={{color:gold}}>{fmtXP((activeSession.encounters||[]).reduce((s,e)=>{const r=calcEncounterXP(e.monsters||[]);return s+applyMultiplier(r,getMonsterCount(e.monsters||[]));},0))}</span>
+                </div>
+                {activeParty&&activeParty.members.length>0&&(
+                  <div style={{display:"flex",justifyContent:"space-between",marginTop:4,fontSize:11}}>
+                    <span style={{color:dimmed}}>Per speler</span>
+                    <span style={{color:muted}}>{fmtXP(Math.round((activeSession.encounters||[]).reduce((s,e)=>{const r=calcEncounterXP(e.monsters||[]);return s+applyMultiplier(r,getMonsterCount(e.monsters||[]));},0)/activeParty.members.length))}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+          {rightTab==="session"&&!activeSession&&(
+            <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:dimmed,fontSize:12}}>Selecteer een sessie</div>
+          )}
+        </div>
       </div>
     </div>
   );
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+
+
+// ═══════════════════════════════════════════════════════
+// UNIFIED GM COMMAND — Root App
+// Initiative Tracker + Monster Quickview + Encounter Builder
+// Pathfinder 1e — Archives of Nethys ruleset
+// ═══════════════════════════════════════════════════════
+
+const TABS = [
+  { key: "initiative", icon: "⚔️", label: "Initiative Tracker" },
+  { key: "monsters",   icon: "📖", label: "Monster Quickview" },
+  { key: "encounters", icon: "🗺️", label: "Encounter Builder" },
+];
+
+function App() {
+  const [tab, setTab] = useState(() => localStorage.getItem("pf1e-active-tab") || "initiative");
+  const [toast, setToast] = useState(null);
+
+  useEffect(() => { localStorage.setItem("pf1e-active-tab", tab); }, [tab]);
+
+  function showToast(msg, color="#2ecc71") {
+    setToast({msg, color});
+    setTimeout(() => setToast(null), 2500);
+  }
+
+  // When monster quickview sends to tracker: switch tab
+  function handleAddToCombat(monsterData) {
+    const pending = JSON.parse(localStorage.getItem("pf1e-gm-tracker-import") || '{"combatants":[]}');
+    pending.combatants.push({
+      id: Math.random().toString(36).slice(2),
+      name: monsterData.name,
+      type: "Enemy",
+      initBonus: monsterData.initBonus || 0,
+      initiative: 0,
+      hpMax: monsterData.hpMax || 0,
+      hpCurrent: monsterData.hpMax || 0,
+      ac: monsterData.ac || 10,
+      conScore: monsterData.conScore || 10,
+      conditions: [],
+    });
+    pending.timestamp = Date.now();
+    localStorage.setItem("pf1e-gm-tracker-import", JSON.stringify(pending));
+    setTab("initiative");
+    showToast(`${monsterData.name} toegevoegd aan tracker`);
+  }
+
+  const monsters = window.MONSTERS || [];
+
+  return (
+    <div style={{height:"100vh",display:"flex",flexDirection:"column",fontFamily:"'Crimson Text',Georgia,serif",color:text,background:"#0d0f0e",overflow:"hidden"}}>
+      {/* Toast */}
+      {toast && (
+        <div style={{position:"fixed",top:14,right:14,background:"#1a1a1a",border:`1px solid ${toast.color}`,borderRadius:8,padding:"9px 16px",fontSize:13,color:toast.color,zIndex:1000,fontFamily:"'Cinzel',serif",letterSpacing:"0.06em",boxShadow:"0 4px 20px rgba(0,0,0,0.6)"}}>
+          {toast.msg}
+        </div>
+      )}
+
+      {/* Top bar */}
+      <div style={{background:"linear-gradient(135deg,#1a0e05,#0d0f0e)",borderBottom:`1px solid ${border}`,padding:"0 20px",display:"flex",alignItems:"stretch",flexShrink:0,height:48}}>
+        {/* Logo */}
+        <div style={{display:"flex",alignItems:"center",gap:10,paddingRight:20,borderRight:`1px solid ${border}`,marginRight:4}}>
+          <span style={{fontSize:18}}>⚔️</span>
+          <div>
+            <div style={{fontFamily:"'Cinzel','Palatino Linotype',serif",fontSize:15,fontWeight:700,color:gold,letterSpacing:"0.08em",lineHeight:1}}>GM COMMAND</div>
+            <div style={{fontSize:9,color:muted,letterSpacing:"0.18em",textTransform:"uppercase"}}>Pathfinder 1e · {monsters.length.toLocaleString()} monsters</div>
+          </div>
+        </div>
+
+        {/* Tabs */}
+        {TABS.map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)} style={{
+            display:"flex",alignItems:"center",gap:6,
+            padding:"0 18px",
+            fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:"0.08em",
+            cursor:"pointer",border:"none",borderBottom:`2px solid ${tab===t.key?gold:"transparent"}`,
+            background:tab===t.key?"rgba(200,149,42,0.07)":"transparent",
+            color:tab===t.key?gold:muted,
+            transition:"all 0.15s",
+          }}>
+            <span>{t.icon}</span> {t.label}
+          </button>
+        ))}
+
+        {/* Right: AoN link */}
+        <div style={{marginLeft:"auto",display:"flex",alignItems:"center"}}>
+          <a href="https://aonprd.com" target="_blank" rel="noopener noreferrer"
+            style={{fontSize:10,color:"#4a6a8a",textDecoration:"none",letterSpacing:"0.1em",display:"flex",alignItems:"center",gap:4}}>
+            Archives of Nethys ↗
+          </a>
+        </div>
+      </div>
+
+      {/* Content */}
+      <div style={{flex:1,overflow:"hidden"}}>
+        {tab === "initiative" && <InitiativeTracker />}
+        {tab === "monsters"   && <MonsterQuickview onAddToCombat={handleAddToCombat} />}
+        {tab === "encounters" && <EncounterBuilder onShowToast={showToast} />}
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+
 </script>
 </body>
 </html>
