@@ -9,1865 +9,839 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="monsters.js"></script>
 <style>
-* { margin:0; padding:0; box-sizing:border-box; }
-body { background:#0d0f0e; }
-::-webkit-scrollbar { width:6px; }
-::-webkit-scrollbar-track { background:#0d0f0e; }
-::-webkit-scrollbar-thumb { background:#2a2018; border-radius:3px; }
-::-webkit-scrollbar-thumb:hover { background:#3a3020; }
-input:focus, select:focus, textarea:focus { border-color:#8B5E3C !important; outline:none; }
-select option { background:#0d0f0e; color:#d4c5a9; }
-@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
-.fade-in { animation: fadeIn 0.2s ease; }
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d0f0e}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#0d0f0e}
+::-webkit-scrollbar-thumb{background:#2a2018;border-radius:3px}
+input:focus,select:focus,textarea:focus{border-color:#8B5E3C!important;outline:none}
+select option{background:#0d0f0e;color:#d4c5a9}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.fi{animation:fadeIn 0.2s ease}
 </style>
 </head>
 <body>
 <div id="root"></div>
 <script type="text/babel">
-const { useState, useEffect, useRef, useMemo, useCallback } = React;
+const {useState,useEffect,useRef,useMemo} = React;
 
-const { useState, useEffect, useRef, useMemo } = React;
+// ─── SHARED CONSTANTS ────────────────────────────────────────────────────────
+const C = {
+  gold:    "#c8952a",
+  goldDim: "#8B5E3C",
+  border:  "#2a2018",
+  text:    "#d4c5a9",
+  muted:   "#6a5535",
+  dim:     "#3a2a18",
+  panel:   "#111310",
+  bg:      "#0d0f0e",
+};
 
-// ═══════════════════════════════════════════════════════
-// SHARED CONSTANTS
-// ═══════════════════════════════════════════════════════
+// shared input/select/label styles
+const inp = (extra={}) => ({width:"100%",background:"#0a0c0b",border:`1px solid ${C.border}`,borderRadius:6,padding:"6px 10px",color:C.text,fontFamily:"inherit",fontSize:13,boxSizing:"border-box",...extra});
+const sel = (extra={}) => ({...inp(),cursor:"pointer",...extra});
+const lbl = {fontSize:10,color:C.muted,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:3,display:"block"};
+const btn = (v="",extra={}) => ({padding:"6px 13px",borderRadius:6,fontSize:11,fontFamily:"'Cinzel',serif",letterSpacing:"0.06em",cursor:"pointer",border:"1px solid",transition:"all 0.15s",
+  ...(v==="gold" ? {background:"rgba(139,94,60,0.2)",borderColor:C.goldDim,color:C.gold} :
+      v==="green"? {background:"rgba(30,60,30,0.3)", borderColor:"#3a5a3a",color:"#7ab87a"} :
+      v==="red"  ? {background:"rgba(80,20,20,0.2)", borderColor:"#4a1818",color:"#c0392b"} :
+      v==="blue" ? {background:"rgba(30,50,80,0.3)", borderColor:"#3a5a8a",color:"#7aaad8"} :
+                   {background:"transparent",         borderColor:C.border, color:C.muted}),
+  ...extra});
+const cinzel = {fontFamily:"'Cinzel','Palatino Linotype',serif"};
+function uid(){return Math.random().toString(36).slice(2,10)}
+function sign(n){if(n==null)return"—";return(n>=0?"+":"")+n}
+function d20(){return Math.floor(Math.random()*20)+1}
+function fmtXP(n){return n>=1000?(n/1000).toFixed(n%1000===0?0:1)+"k":String(n||0)}
 
-const CONDITIONS = [
-  { id: "bleed", label: "Bleed", color: "#c0392b" },
-  { id: "blinded", label: "Blinded", color: "#7f8c8d" },
-  { id: "confused", label: "Confused", color: "#8e44ad" },
-  { id: "cowering", label: "Cowering", color: "#e67e22" },
-  { id: "dazed", label: "Dazed", color: "#95a5a6" },
-  { id: "dazzled", label: "Dazzled", color: "#f1c40f" },
-  { id: "deafened", label: "Deafened", color: "#7f8c8d" },
-  { id: "dying", label: "Dying", color: "#e74c3c" },
-  { id: "entangled", label: "Entangled", color: "#27ae60" },
-  { id: "exhausted", label: "Exhausted", color: "#e67e22" },
-  { id: "fascinated", label: "Fascinated", color: "#9b59b6" },
-  { id: "fatigued", label: "Fatigued", color: "#d35400" },
-  { id: "flat-footed", label: "Flat-Footed", color: "#95a5a6" },
-  { id: "frightened", label: "Frightened", color: "#e74c3c" },
-  { id: "grappled", label: "Grappled", color: "#e67e22" },
-  { id: "helpless", label: "Helpless", color: "#c0392b" },
-  { id: "nauseated", label: "Nauseated", color: "#27ae60" },
-  { id: "panicked", label: "Panicked", color: "#e74c3c" },
-  { id: "paralyzed", label: "Paralyzed", color: "#2c3e50" },
-  { id: "pinned", label: "Pinned", color: "#e67e22" },
-  { id: "prone", label: "Prone", color: "#95a5a6" },
-  { id: "shaken", label: "Shaken", color: "#e74c3c" },
-  { id: "sickened", label: "Sickened", color: "#27ae60" },
-  { id: "stable", label: "Stable", color: "#2ecc71" },
-  { id: "staggered", label: "Staggered", color: "#e67e22" },
-  { id: "stunned", label: "Stunned", color: "#8e44ad" },
-  { id: "unconscious", label: "Unconscious", color: "#7f8c8d" },
+// ─── PF1e DATA ───────────────────────────────────────────────────────────────
+const CONDITIONS=[
+  {id:"bleed",label:"Bleed",color:"#c0392b"},{id:"blinded",label:"Blinded",color:"#7f8c8d"},
+  {id:"confused",label:"Confused",color:"#8e44ad"},{id:"cowering",label:"Cowering",color:"#e67e22"},
+  {id:"dazed",label:"Dazed",color:"#95a5a6"},{id:"dazzled",label:"Dazzled",color:"#f1c40f"},
+  {id:"deafened",label:"Deafened",color:"#7f8c8d"},{id:"dying",label:"Dying",color:"#e74c3c"},
+  {id:"entangled",label:"Entangled",color:"#27ae60"},{id:"exhausted",label:"Exhausted",color:"#e67e22"},
+  {id:"fascinated",label:"Fascinated",color:"#9b59b6"},{id:"fatigued",label:"Fatigued",color:"#d35400"},
+  {id:"flat-footed",label:"Flat-Footed",color:"#95a5a6"},{id:"frightened",label:"Frightened",color:"#e74c3c"},
+  {id:"grappled",label:"Grappled",color:"#e67e22"},{id:"helpless",label:"Helpless",color:"#c0392b"},
+  {id:"nauseated",label:"Nauseated",color:"#27ae60"},{id:"panicked",label:"Panicked",color:"#e74c3c"},
+  {id:"paralyzed",label:"Paralyzed",color:"#2c3e50"},{id:"pinned",label:"Pinned",color:"#e67e22"},
+  {id:"prone",label:"Prone",color:"#95a5a6"},{id:"shaken",label:"Shaken",color:"#e74c3c"},
+  {id:"sickened",label:"Sickened",color:"#27ae60"},{id:"stable",label:"Stable",color:"#2ecc71"},
+  {id:"staggered",label:"Staggered",color:"#e67e22"},{id:"stunned",label:"Stunned",color:"#8e44ad"},
+  {id:"unconscious",label:"Unconscious",color:"#7f8c8d"},
 ];
+const CTYPE_COLORS={PC:"#4a9eff",Enemy:"#e74c3c",Ally:"#2ecc71",Summon:"#9b59b6"};
+const CR_XP={"1/8":50,"1/6":65,"1/4":100,"1/3":135,"1/2":200,"1":400,"2":600,"3":800,"4":1200,"5":1600,"6":2400,"7":3200,"8":4800,"9":6400,"10":9600,"11":12800,"12":19200,"13":25600,"14":38400,"15":51200,"16":76800,"17":102400,"18":153600,"19":204800,"20":307200,"21":409600,"22":614400,"23":819200,"24":1228800,"25":1638400};
+const XP_THRESH={"1":[50,100,150,400],"2":[100,200,300,600],"3":[150,300,450,800],"4":[200,400,625,1200],"5":[300,500,750,1600],"6":[400,750,1100,2400],"7":[500,900,1300,3200],"8":[600,1400,2000,4800],"9":[800,1600,2400,6400],"10":[1000,2000,2800,9600],"11":[1200,2400,3600,12800],"12":[1600,3000,4500,19200],"13":[2000,3800,5600,25600],"14":[2500,4500,6400,38400],"15":[3000,5500,8000,51200],"16":[3500,6500,9600,76800],"17":[4000,7500,11000,102400],"18":[5000,8500,13000,153600],"19":[5500,10000,15000,204800],"20":[6000,11000,16000,307200]};
+const DIFF_LABELS=["Easy","Medium","Hard","Epic"];
+const DIFF_COLORS=["#2ecc71","#f39c12","#e67e22","#e74c3c"];
+const PF1_CLASSES=["Barbarian","Bard","Cleric","Druid","Fighter","Monk","Paladin","Ranger","Rogue","Sorcerer","Wizard","Alchemist","Cavalier","Gunslinger","Inquisitor","Magus","Oracle","Summoner","Witch","Ninja","Samurai","Arcanist","Bloodrager","Brawler","Hunter","Investigator","Shaman","Skald","Slayer","Swashbuckler","Warpriest","Kineticist","Medium","Mesmerist","Occultist","Psychic","Spiritualist","Shifter","Vigilante","Unchained Barbarian","Unchained Monk","Unchained Rogue","Unchained Summoner","Adept","Aristocrat","Commoner","Expert","Warrior","Arcane Archer","Arcane Trickster","Assassin","Dragon Disciple","Duelist","Eldritch Knight","Loremaster","Mystic Theurge","Pathfinder Chronicler","Shadowdancer","Antipaladin"];
+const CR_LIST=["1/8","1/6","1/4","1/3","1/2","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25"];
+const CTYPES_ALL=["aberration","animal","construct","dragon","fey","humanoid","magical beast","monstrous humanoid","ooze","outsider","plant","undead","vermin"];
+const SIZES_ALL=["Fine","Diminutive","Tiny","Small","Medium","Large","Huge","Gargantuan","Colossal"];
+const NPC_STATUSES=["Levend","Dood","Gevlucht","Onbekend","Gevangen"];
+const NPC_RELS=["Vriend","Neutraal","Vijand","Onbekend","Wisselvallig"];
+const NPC_STAT_C={"Levend":"#2ecc71","Dood":"#c0392b","Gevlucht":"#e67e22","Onbekend":"#7f8c8d","Gevangen":"#9b59b6"};
+const NPC_REL_C={"Vriend":"#2ecc71","Neutraal":"#95a5a6","Vijand":"#e74c3c","Onbekend":"#7f8c8d","Wisselvallig":"#f39c12"};
+const NPC_TAGS_PRE=["quest giver","informant","merchant","guard","noble","villain","ally","contact","witness","captive","recurring"];
 
-const TYPES_COMBAT = ["PC", "Enemy", "Ally", "Summon"];
-const TYPE_COLORS = { PC: "#4a9eff", Enemy: "#e74c3c", Ally: "#2ecc71", Summon: "#9b59b6" };
-
-const CREATURE_TYPES = ["aberration","animal","construct","dragon","fey","humanoid",
-  "magical beast","monstrous humanoid","ooze","outsider","plant","undead","vermin"];
-const SIZES = ["Fine","Diminutive","Tiny","Small","Medium","Large","Huge","Gargantuan","Colossal"];
-const CR_OPTIONS = ["1/4","1/3","1/2","1","2","3","4","5","6","7","8","9","10",
-  "11","12","13","14","15","16","17","18","19","20","21","22","23","24","25"];
-
-function d20() { return Math.floor(Math.random() * 20) + 1; }
-function sign(n) { if (n == null) return "—"; return (n >= 0 ? "+" : "") + n; }
-function abMod(score) {
-  if (score == null) return null;
-  const m = Math.floor((score - 10) / 2);
-  return (m >= 0 ? "+" : "") + m;
+// ─── ENCOUNTER HELPERS ───────────────────────────────────────────────────────
+function calcRawXP(monsters){return (monsters||[]).reduce((s,m)=>s+(CR_XP[m.cr]||0)*(m.count||1),0)}
+function monsterCount(monsters){return (monsters||[]).reduce((s,m)=>s+(m.count||1),0)}
+function xpMultiplier(n){return n<=1?1:n===2?1.5:n<=6?2:n<=10?2.5:n<=14?3:4}
+function adjXP(monsters){const r=calcRawXP(monsters);return Math.round(r*xpMultiplier(monsterCount(monsters)))}
+function partyAvgLevel(party){if(!party||!party.members.length)return 1;return Math.round(party.members.reduce((s,m)=>s+(m.level||1),0)/party.members.length)}
+function getDiff(xp,party){
+  if(!party||!party.members.length)return null;
+  const lvl=Math.min(20,Math.max(1,partyAvgLevel(party)));
+  const t=XP_THRESH[String(lvl)];if(!t)return null;
+  const xpPP=xp/party.members.length;
+  if(xpPP<t[0])return{label:"Trivial",color:"#5a5a6a"};
+  if(xpPP<t[1])return{label:"Easy",   color:DIFF_COLORS[0]};
+  if(xpPP<t[2])return{label:"Medium", color:DIFF_COLORS[1]};
+  if(xpPP<t[3])return{label:"Hard",   color:DIFF_COLORS[2]};
+  return{label:"Epic",color:DIFF_COLORS[3]};
+}
+function getThresholds(party){
+  if(!party||!party.members.length)return null;
+  const t=XP_THRESH[String(Math.min(20,Math.max(1,partyAvgLevel(party))))];
+  return t?t.map(v=>v*party.members.length):null;
 }
 
-// ═══════════════════════════════════════════════════════
-// STYLES
-// ═══════════════════════════════════════════════════════
-const gold = "#c8952a", goldDim = "#8B5E3C", border = "#2a2018";
-const text = "#d4c5a9", muted = "#6a5535", dimmed = "#3a2a18";
-
-const S = {
-  app: { height: "100vh", display: "flex", flexDirection: "column", fontFamily: "'Crimson Text', Georgia, serif", color: text, background: "#0d0f0e", overflow: "hidden" },
-  topBar: { background: "linear-gradient(135deg, #1a0e05, #0d0f0e)", borderBottom: `1px solid ${border}`, padding: "10px 20px", display: "flex", alignItems: "center", gap: 16, flexShrink: 0, zIndex: 10 },
-  appTitle: { fontFamily: "'Cinzel','Palatino Linotype',serif", fontSize: 18, fontWeight: 700, color: gold, letterSpacing: "0.08em", textShadow: "0 0 20px rgba(200,149,42,0.4)" },
-  appSub: { fontSize: 11, color: muted, letterSpacing: "0.15em" },
-  tabs: { display: "flex", gap: 2, marginLeft: "auto" },
-  tabBtn: { padding: "6px 18px", fontFamily: "'Cinzel',serif", fontSize: 12, letterSpacing: "0.08em", cursor: "pointer", border: `1px solid ${border}`, borderRadius: "6px 6px 0 0", background: "transparent", color: muted, transition: "all 0.15s" },
-  tabBtnActive: { background: "rgba(200,149,42,0.1)", borderColor: goldDim, color: gold, borderBottom: "1px solid #0d0f0e" },
-  roundBadge: { background: "#1a1208", border: `1px solid ${goldDim}`, borderRadius: 8, padding: "4px 14px", textAlign: "center" },
-  roundNum: { fontFamily: "'Cinzel',serif", fontSize: 20, fontWeight: 700, color: gold, lineHeight: 1 },
-  roundLabel: { fontSize: 9, color: muted, letterSpacing: "0.15em", textTransform: "uppercase" },
-  content: { flex: 1, overflow: "hidden" },
-  // Initiative tracker
-  itRoot: { height: "100%", display: "flex", flexDirection: "column", overflow: "hidden" },
-  itToolbar: { padding: "10px 20px", borderBottom: `1px solid ${border}`, display: "flex", gap: 8, alignItems: "center", background: "#0d0f0e", flexShrink: 0 },
-  itBody: { flex: 1, overflowY: "auto", padding: "12px 20px" },
-  itAddSection: { borderTop: `1px solid ${border}`, padding: "12px 20px", background: "#0d0f0e", flexShrink: 0 },
-  addGrid: { display: "grid", gridTemplateColumns: "1fr 80px 60px 70px 70px 80px", gap: 8, alignItems: "end" },
-  label: { fontSize: 10, color: muted, letterSpacing: "0.12em", textTransform: "uppercase", marginBottom: 3, display: "block" },
-  input: { width: "100%", background: "#0a0c0b", border: `1px solid ${border}`, borderRadius: 6, padding: "6px 10px", color: text, fontFamily: "inherit", fontSize: 14, outline: "none", boxSizing: "border-box" },
-  select: { width: "100%", background: "#0a0c0b", border: `1px solid ${border}`, borderRadius: 6, padding: "6px 10px", color: text, fontFamily: "inherit", fontSize: 13, outline: "none", boxSizing: "border-box" },
-  btn: (variant) => ({
-    padding: "7px 14px", borderRadius: 6, fontSize: 11, fontFamily: "'Cinzel',serif", letterSpacing: "0.06em", cursor: "pointer", border: "1px solid", transition: "all 0.15s",
-    ...(variant === "gold" ? { background: "rgba(139,94,60,0.2)", borderColor: goldDim, color: gold } :
-        variant === "green" ? { background: "rgba(30,60,30,0.3)", borderColor: "#3a5a3a", color: "#7ab87a" } :
-        variant === "red" ? { background: "rgba(80,20,20,0.2)", borderColor: "#4a1818", color: "#c0392b" } :
-        { background: "transparent", borderColor: border, color: muted })
-  }),
-  // Combat row
-  combatRow: { display: "grid", gridTemplateColumns: "36px 1fr 56px 90px 110px 50px 1fr", gap: 8, alignItems: "center", padding: "9px 12px", borderRadius: 8, marginBottom: 5, border: "1px solid transparent", transition: "all 0.2s" },
-  initBox: { width: 36, height: 36, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Cinzel',serif", fontSize: 15, fontWeight: 700, cursor: "pointer", flexShrink: 0 },
-  hpBar: { height: 3, borderRadius: 2, background: "#1a1a1a", marginTop: 3, overflow: "hidden" },
-  condTag: { display: "inline-flex", alignItems: "center", gap: 3, padding: "1px 6px", borderRadius: 3, fontSize: 10, marginRight: 3, marginBottom: 2, cursor: "pointer", border: "1px solid" },
-  dmgInput: { width: 46, background: "#0a0c0b", border: `1px solid ${border}`, borderRadius: 4, padding: "2px 5px", color: text, fontFamily: "inherit", fontSize: 12, textAlign: "center", outline: "none" },
-  // Monster quickview
-  mqRoot: { height: "100%", display: "flex", overflow: "hidden" },
-  mqSidebar: { width: 280, flexShrink: 0, display: "flex", flexDirection: "column", borderRight: `1px solid ${border}`, background: "#0f1110", overflow: "hidden" },
-  mqSearch: { padding: "10px 12px", borderBottom: `1px solid ${border}` },
-  mqSearchInput: { width: "100%", background: "#0a0c0b", border: `1px solid ${border}`, borderRadius: 8, padding: "7px 12px", color: text, fontFamily: "inherit", fontSize: 14, outline: "none", boxSizing: "border-box" },
-  mqFilters: { padding: "6px 12px", borderBottom: `1px solid ${border}`, display: "flex", gap: 5 },
-  mqFilterSel: { background: "#0a0c0b", border: `1px solid ${border}`, borderRadius: 5, padding: "4px 6px", color: muted, fontFamily: "inherit", fontSize: 11, outline: "none", flex: 1 },
-  mqList: { flex: 1, overflowY: "auto" },
-  mqItem: { padding: "7px 12px", cursor: "pointer", borderLeft: "3px solid transparent", transition: "all 0.1s", display: "flex", alignItems: "center", gap: 7 },
-  mqCR: { fontSize: 10, fontFamily: "'Cinzel',serif", padding: "1px 5px", borderRadius: 3, background: "#1a1208", border: `1px solid ${border}`, color: gold, flexShrink: 0, minWidth: 26, textAlign: "center" },
-  mqDetail: { flex: 1, overflowY: "auto", padding: "20px 24px" },
-  statBox: { background: "#0d0f0e", border: `1px solid ${border}`, borderRadius: 6, padding: "5px 9px", textAlign: "center", minWidth: 52 },
-  statRow: { display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 },
-};
-
-// ═══════════════════════════════════════════════════════
-// INITIATIVE TRACKER
-// ═══════════════════════════════════════════════════════
-
-function CombatantRow({ c, isActive, onUpdate, onRemove }) {
-  const [dmg, setDmg] = useState("");
-  const [heal, setHeal] = useState("");
-  const [showConds, setShowConds] = useState(false);
-  const [editInit, setEditInit] = useState(false);
-  const [initVal, setInitVal] = useState(String(c.initiative));
-
-  const hpPct = c.hpMax > 0 ? Math.max(0, Math.min(100, (c.hpCurrent / c.hpMax) * 100)) : 100;
-  const hpColor = hpPct > 60 ? "#2ecc71" : hpPct > 30 ? "#f39c12" : "#e74c3c";
-  const isDead = c.hpCurrent <= -(c.conScore || 10) && c.hpMax > 0;
-  const isDying = c.hpCurrent < 0 && !isDead && c.hpMax > 0;
-  const typeColor = TYPE_COLORS[c.type] || "#888";
-  const rowBg = isActive ? "rgba(200,149,42,0.07)" : isDead ? "rgba(192,57,43,0.04)" : "rgba(255,255,255,0.01)";
-  const rowBorder = isActive ? goldDim : isDead ? "#4a1818" : "#1e1812";
-
-  function applyDmg() { const v=parseInt(dmg); if(!isNaN(v)&&v>0){onUpdate({hpCurrent:Math.max(-999,c.hpCurrent-v)});setDmg("");} }
-  function applyHeal() { const v=parseInt(heal); if(!isNaN(v)&&v>0){onUpdate({hpCurrent:Math.min(c.hpMax||9999,c.hpCurrent+v)});setHeal("");} }
-  function toggleCond(id) { const conds=c.conditions||[]; onUpdate({conditions:conds.includes(id)?conds.filter(x=>x!==id):[...conds,id]}); }
-
-  return (
-    <div style={{...S.combatRow, background:rowBg, borderColor:rowBorder, opacity:isDead?0.5:1}}>
-      <div style={{...S.initBox, background:isActive?"rgba(200,149,42,0.15)":"#111", border:`1px solid ${isActive?gold:border}`, color:isActive?gold:"#8a7050"}}
-        onClick={()=>setEditInit(true)}>
-        {editInit ? (
-          <input autoFocus style={{width:28,background:"transparent",border:"none",color:gold,fontFamily:"'Cinzel',serif",fontSize:13,textAlign:"center",outline:"none"}}
-            value={initVal} onChange={e=>setInitVal(e.target.value)}
-            onBlur={()=>{const v=parseInt(initVal);if(!isNaN(v))onUpdate({initiative:v});setEditInit(false);}}
-            onKeyDown={e=>{if(e.key==="Enter"){const v=parseInt(initVal);if(!isNaN(v))onUpdate({initiative:v});setEditInit(false);}}} />
-        ) : c.initiative}
-      </div>
-
-      <div>
-        <div style={{display:"flex",alignItems:"center",gap:5}}>
-          {isActive && <span style={{color:gold,fontSize:10}}>▶</span>}
-          <span style={{fontFamily:"'Cinzel',serif",fontSize:13,color:isDead?"#5a3a3a":"#e8d8b8"}}>{c.name}</span>
-          <span style={{fontSize:9,padding:"1px 4px",borderRadius:3,background:`${typeColor}22`,border:`1px solid ${typeColor}44`,color:typeColor}}>{c.type}</span>
-          {isDying && <span style={{fontSize:9,color:"#e74c3c",fontFamily:"'Cinzel',serif"}}>DYING</span>}
-          {isDead && <span style={{fontSize:9,color:"#7a2020",fontFamily:"'Cinzel',serif"}}>DEAD</span>}
-        </div>
-        <div style={{marginTop:2,display:"flex",flexWrap:"wrap"}}>
-          {(c.conditions||[]).map(cid=>{const cond=CONDITIONS.find(x=>x.id===cid);if(!cond)return null;return(
-            <span key={cid} style={{...S.condTag,color:cond.color,borderColor:`${cond.color}55`,background:`${cond.color}11`}} onClick={()=>toggleCond(cid)}>{cond.label} ✕</span>
-          );})}
-        </div>
-      </div>
-
-      <div style={{textAlign:"center"}}>
-        <div style={S.label}>AC</div>
-        <div style={{fontFamily:"'Cinzel',serif",fontSize:15,color:"#9ab8d8"}}>{c.ac||"—"}</div>
-      </div>
-
-      <div>
-        <div style={S.label}>HP</div>
-        <div style={{display:"flex",alignItems:"center",gap:4}}>
-          <span style={{fontFamily:"'Cinzel',serif",fontSize:14,color:hpColor}}>{c.hpCurrent}</span>
-          <span style={{color:dimmed,fontSize:11}}>/{c.hpMax||"∞"}</span>
-        </div>
-        {c.hpMax>0&&<div style={S.hpBar}><div style={{height:"100%",borderRadius:2,background:hpColor,width:`${hpPct}%`,transition:"width 0.3s"}}/></div>}
-      </div>
-
-      <div>
-        <div style={S.label}>Dmg / Heal</div>
-        <div style={{display:"flex",gap:3}}>
-          <input style={S.dmgInput} placeholder="dmg" value={dmg} onChange={e=>setDmg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&applyDmg()}/>
-          <button style={{...S.btn("red"),padding:"2px 6px",fontSize:13,borderRadius:4}} onClick={applyDmg}>−</button>
-        </div>
-        <div style={{display:"flex",gap:3,marginTop:3}}>
-          <input style={S.dmgInput} placeholder="heal" value={heal} onChange={e=>setHeal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&applyHeal()}/>
-          <button style={{...S.btn("green"),padding:"2px 6px",fontSize:13,borderRadius:4}} onClick={applyHeal}>+</button>
-        </div>
-      </div>
-
-      <div style={{textAlign:"center"}}>
-        <div style={S.label}>Init+</div>
-        <div style={{color:muted,fontSize:12}}>{sign(c.initBonus)}</div>
-      </div>
-
-      <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"flex-start"}}>
-        <button style={{...S.btn(""),fontSize:11,padding:"3px 8px"}} onClick={()=>setShowConds(!showConds)}>{showConds?"▲":"▼"} cond</button>
-        <button style={{...S.btn("red"),fontSize:11,padding:"3px 7px"}} onClick={onRemove}>✕</button>
-        {showConds&&(
-          <div style={{width:"100%",marginTop:4,display:"flex",flexWrap:"wrap",gap:3}}>
-            {CONDITIONS.map(cond=>{const active=(c.conditions||[]).includes(cond.id);return(
-              <span key={cond.id} onClick={()=>toggleCond(cond.id)} style={{...S.condTag,color:active?cond.color:dimmed,borderColor:active?`${cond.color}66`:border,background:active?`${cond.color}18`:"transparent",fontSize:10}}>
-                {cond.label}
-              </span>
-            );})}
-          </div>
-        )}
-      </div>
-    </div>
-  );
+// ─── SHARED UI ───────────────────────────────────────────────────────────────
+function PanelHead({title,children}){
+  return <div style={{background:"linear-gradient(90deg,#1a1208,#111310)",borderBottom:`1px solid ${C.border}`,padding:"9px 14px",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+    <span style={{...cinzel,fontSize:12,letterSpacing:"0.12em",color:C.gold,textTransform:"uppercase"}}>{title}</span>
+    {children}
+  </div>;
+}
+function Divider(){return <div style={{height:1,background:`linear-gradient(90deg,transparent,${C.border},transparent)`,margin:"12px 0"}}/>}
+function Empty({icon,text,sub,action}){
+  return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",color:C.dim,textAlign:"center",padding:20}}>
+    <div style={{fontSize:44,marginBottom:14,opacity:0.3}}>{icon}</div>
+    <div style={{...cinzel,fontSize:14,letterSpacing:"0.1em",color:C.dim}}>{text}</div>
+    {sub&&<div style={{fontSize:12,marginTop:8,color:"#2a1e10"}}>{sub}</div>}
+    {action}
+  </div>;
 }
 
-function InitiativeTracker({ onTabChange }) {
-  const [combatants, setCombatants] = useState([]);
-  const [activeIdx, setActiveIdx] = useState(0);
-  const [round, setRound] = useState(1);
-  const [started, setStarted] = useState(false);
-  const [log, setLog] = useState([]);
-  const [showLog, setShowLog] = useState(false);
-  // Add form state
-  const [aName, setAName] = useState("");
-  const [aType, setAType] = useState("Enemy");
-  const [aInitBonus, setAInitBonus] = useState("0");
-  const [aHP, setAHP] = useState("");
-  const [aAC, setAAC] = useState("");
-  const [aCON, setACON] = useState("10");
-  const [rolledInit, setRolledInit] = useState(null);
-  const logRef = useRef(null);
-
-  // Persist to localStorage
-  useEffect(() => {
-    try { const s=localStorage.getItem("pf1e-gm-initiative"); if(s){const d=JSON.parse(s);setCombatants(d.combatants||[]);setActiveIdx(d.activeIdx||0);setRound(d.round||1);setStarted(d.started||false);setLog(d.log||[]);} } catch{}
-  }, []);
-  useEffect(() => {
-    try { localStorage.setItem("pf1e-gm-initiative", JSON.stringify({combatants,activeIdx,round,started,log})); } catch{}
-  }, [combatants,activeIdx,round,started,log]);
-
-  useEffect(() => { if(logRef.current)logRef.current.scrollTop=logRef.current.scrollHeight; }, [log]);
-
-  function addLog(msg) { const t=new Date().toLocaleTimeString("nl",{hour:"2-digit",minute:"2-digit"}); setLog(p=>[...p.slice(-99),`[${t}] ${msg}`]); }
-
-  function addCombatant() {
-    if(!aName.trim())return;
-    const bonus=parseInt(aInitBonus)||0;
-    const init=rolledInit!==null?rolledInit:d20()+bonus;
-    const c={id:Date.now()+Math.random(),name:aName.trim(),type:aType,initBonus:bonus,initiative:init,hpMax:parseInt(aHP)||0,hpCurrent:parseInt(aHP)||0,ac:parseInt(aAC)||0,conScore:parseInt(aCON)||10,conditions:[]};
-    setCombatants(p=>[...p,c]);
-    addLog(`${c.name} (${c.type}) — Init ${c.initiative}`);
-    setAName("");setAHP("");setAAC("");setAInitBonus("0");setRolledInit(null);
-  }
-
-  function updateC(id,updates) {
-    setCombatants(p=>p.map(c=>{
-      if(c.id!==id)return c;
-      if("hpCurrent"in updates){const diff=updates.hpCurrent-c.hpCurrent;if(diff<0)addLog(`${c.name} −${-diff} HP → ${updates.hpCurrent}`);else if(diff>0)addLog(`${c.name} +${diff} HP → ${updates.hpCurrent}`);}
-      return{...c,...updates};
-    }));
-  }
-
-  function startCombat() {
-    const sorted=[...combatants].sort((a,b)=>b.initiative-a.initiative);
-    setCombatants(sorted);setActiveIdx(0);setStarted(true);setRound(1);
-    addLog("═══ COMBAT GESTART ═══");
-    addLog("Volgorde: "+sorted.map(c=>`${c.name}(${c.initiative})`).join(", "));
-  }
-
-  function nextTurn() {
-    const next=(activeIdx+1)%combatants.length;
-    if(next===0){setRound(r=>r+1);addLog(`─── Ronde ${round+1} ───`);}
-    setActiveIdx(next);
-    if(combatants[next])addLog(`Beurt: ${combatants[next].name}`);
-  }
-
-  const sorted = started ? combatants : [...combatants].sort((a,b)=>b.initiative-a.initiative);
-  const active = sorted[activeIdx];
-
-  return (
-    <div style={S.itRoot}>
-      {/* Toolbar */}
-      <div style={S.itToolbar}>
-        {!started ? (
-          <>
-            <button style={S.btn("green")} onClick={()=>{setCombatants(p=>p.map(c=>({...c,initiative:d20()+(c.initBonus||0)})));addLog("🎲 All initiatives rolled");}}>🎲 Roll All</button>
-            <button style={S.btn("gold")} onClick={startCombat} disabled={combatants.length===0}>▶ Start Combat</button>
-          </>
-        ) : (
-          <>
-            <button style={{...S.btn("gold"),fontSize:13}} onClick={nextTurn}>Volgende beurt ▶</button>
-            <button style={S.btn("red")} onClick={()=>{setStarted(false);setActiveIdx(0);addLog("■ Combat gestopt");}}>■ Stop</button>
-          </>
-        )}
-        <button style={S.btn("")} onClick={()=>setShowLog(s=>!s)}>{showLog?"▲":"▼"} Log</button>
-        <button style={{...S.btn("red"),marginLeft:"auto"}} onClick={()=>{if(window.confirm("Reset encounter?")){{setCombatants([]);setActiveIdx(0);setRound(1);setStarted(false);}}}}>🗑 Reset</button>
-        <span style={{fontSize:11,color:dimmed}}>{combatants.length} deelnemers</span>
-      </div>
-
-      {/* Log */}
-      {showLog && (
-        <div ref={logRef} style={{background:"#0a0c0b",borderBottom:`1px solid ${border}`,height:100,overflowY:"auto",padding:"6px 20px",flexShrink:0}}>
-          {log.map((e,i)=><div key={i} style={{fontSize:11,color:muted,fontFamily:"'Courier New',monospace",borderBottom:`1px solid ${border}`,padding:"2px 0"}}>{e}</div>)}
-        </div>
-      )}
-
-      {/* Active banner */}
-      {started && active && (
-        <div style={{background:"rgba(200,149,42,0.07)",borderBottom:`1px solid rgba(200,149,42,0.2)`,padding:"8px 20px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-          <span style={{fontSize:16}}>⚔️</span>
-          <div>
-            <div style={{fontSize:10,color:muted,letterSpacing:"0.15em",textTransform:"uppercase"}}>Actieve beurt · Ronde {round}</div>
-            <div style={{fontFamily:"'Cinzel',serif",fontSize:18,color:gold}}>{active.name}</div>
-          </div>
-          <div style={{marginLeft:"auto",display:"flex",gap:16}}>
-            <div style={{textAlign:"center"}}><div style={{fontSize:10,color:muted}}>AC</div><div style={{fontFamily:"'Cinzel',serif",fontSize:20,color:"#9ab8d8"}}>{active.ac||"—"}</div></div>
-            <div style={{textAlign:"center"}}><div style={{fontSize:10,color:muted}}>HP</div><div style={{fontFamily:"'Cinzel',serif",fontSize:20,color:"#2ecc71"}}>{active.hpCurrent}<span style={{fontSize:13,color:dimmed}}>/{active.hpMax||"∞"}</span></div></div>
-          </div>
-        </div>
-      )}
-
-      {/* List */}
-      <div style={S.itBody}>
-        {sorted.length===0 ? (
-          <div style={{textAlign:"center",padding:"60px 20px",color:dimmed}}>
-            <div style={{fontSize:40,marginBottom:12}}>⚔️</div>
-            <div style={{fontFamily:"'Cinzel',serif",fontSize:14}}>Geen deelnemers</div>
-            <div style={{fontSize:12,marginTop:8}}>Voeg PCs en vijanden toe via het formulier hieronder</div>
-          </div>
-        ) : sorted.map((c,i)=>(
-          <CombatantRow key={c.id} c={c} isActive={started&&i===activeIdx}
-            onUpdate={u=>updateC(c.id,u)} onRemove={()=>{setCombatants(p=>p.filter(x=>x.id!==c.id));addLog(`${c.name} verwijderd`);}} />
-        ))}
-      </div>
-
-      {/* Add form */}
-      <div style={S.itAddSection}>
-        <div style={S.addGrid}>
-          <div><label style={S.label}>Naam</label><input style={S.input} value={aName} onChange={e=>setAName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCombatant()} placeholder="Goblin, Harsk..."/></div>
-          <div><label style={S.label}>Type</label><select style={S.select} value={aType} onChange={e=>setAType(e.target.value)}>{TYPES_COMBAT.map(t=><option key={t}>{t}</option>)}</select></div>
-          <div><label style={S.label}>Init +</label><input style={S.input} type="number" value={aInitBonus} onChange={e=>setAInitBonus(e.target.value)}/></div>
-          <div><label style={S.label}>HP</label><input style={S.input} type="number" value={aHP} onChange={e=>setAHP(e.target.value)} placeholder="0"/></div>
-          <div><label style={S.label}>AC</label><input style={S.input} type="number" value={aAC} onChange={e=>setAAC(e.target.value)} placeholder="10"/></div>
-          <div><label style={S.label}>CON</label><input style={S.input} type="number" value={aCON} onChange={e=>setACON(e.target.value)} placeholder="10"/></div>
-        </div>
-        <div style={{display:"flex",gap:8,marginTop:10,alignItems:"center"}}>
-          <button style={S.btn("")} onClick={()=>{const bonus=parseInt(aInitBonus)||0;setRolledInit(d20()+bonus);}}>🎲 Roll d20</button>
-          {rolledInit!==null&&<span style={{color:gold,fontFamily:"'Cinzel',serif",fontSize:14}}>= {rolledInit}</span>}
-          <button style={S.btn("gold")} onClick={addCombatant}>+ Toevoegen</button>
-        </div>
-      </div>
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODULE 1 — INITIATIVE TRACKER
+// ═══════════════════════════════════════════════════════════════════════════════
+function CombatantRow({c,isActive,onUpdate,onRemove}){
+  const [dmg,setDmg]=useState(""); const [heal,setHeal]=useState("");
+  const [showC,setShowC]=useState(false); const [editI,setEditI]=useState(false);
+  const [iVal,setIVal]=useState(String(c.initiative));
+  const pct=c.hpMax>0?Math.max(0,Math.min(100,(c.hpCurrent/c.hpMax)*100)):100;
+  const hpCol=pct>60?"#2ecc71":pct>30?"#f39c12":"#e74c3c";
+  const dead=c.hpCurrent<=-(c.conScore||10)&&c.hpMax>0;
+  const dying=c.hpCurrent<0&&!dead&&c.hpMax>0;
+  const tc=CTYPE_COLORS[c.type]||"#888";
+  function applyDmg(){const v=parseInt(dmg);if(!isNaN(v)&&v>0){onUpdate({hpCurrent:Math.max(-999,c.hpCurrent-v)});setDmg("");}}
+  function applyHeal(){const v=parseInt(heal);if(!isNaN(v)&&v>0){onUpdate({hpCurrent:Math.min(c.hpMax||9999,c.hpCurrent+v)});setHeal("");}}
+  function togCond(id){const cs=c.conditions||[];onUpdate({conditions:cs.includes(id)?cs.filter(x=>x!==id):[...cs,id]});}
+  return <div style={{display:"grid",gridTemplateColumns:"36px 1fr 56px 90px 110px 50px 1fr",gap:8,alignItems:"center",padding:"9px 12px",borderRadius:8,marginBottom:5,border:"1px solid",borderColor:isActive?C.goldDim:dead?"#4a1818":"#1e1812",background:isActive?"rgba(200,149,42,0.07)":dead?"rgba(192,57,43,0.04)":"rgba(255,255,255,0.01)",opacity:dead?0.5:1,transition:"all 0.2s"}}>
+    <div onClick={()=>setEditI(true)} style={{width:36,height:36,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",...cinzel,fontSize:15,fontWeight:700,cursor:"pointer",background:isActive?"rgba(200,149,42,0.15)":"#111",border:`1px solid ${isActive?C.gold:C.border}`,color:isActive?C.gold:"#8a7050"}}>
+      {editI?<input autoFocus style={{width:28,background:"transparent",border:"none",color:C.gold,...cinzel,fontSize:13,textAlign:"center",outline:"none"}} value={iVal} onChange={e=>setIVal(e.target.value)} onBlur={()=>{const v=parseInt(iVal);if(!isNaN(v))onUpdate({initiative:v});setEditI(false);}} onKeyDown={e=>{if(e.key==="Enter"){const v=parseInt(iVal);if(!isNaN(v))onUpdate({initiative:v});setEditI(false);}}}/>:c.initiative}
     </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// MONSTER QUICKVIEW
-// ═══════════════════════════════════════════════════════
-
-function StatBox({ label, value, modifier }) {
-  return (
-    <div style={S.statBox}>
-      <div style={{fontSize:9,color:muted,letterSpacing:"0.12em",textTransform:"uppercase"}}>{label}</div>
-      <div style={{fontFamily:"'Cinzel',serif",fontSize:15,color:text,lineHeight:1.2}}>{value??("—")}</div>
-      {modifier!==undefined&&<div style={{fontSize:10,color:muted}}>{modifier}</div>}
-    </div>
-  );
-}
-
-function MonsterDetail({ monster, onAdd }) {
-  if(!monster) return (
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",color:dimmed,textAlign:"center"}}>
-      <div style={{fontSize:48,marginBottom:16,opacity:0.4}}>📖</div>
-      <div style={{fontFamily:"'Cinzel',serif",fontSize:14,letterSpacing:"0.1em"}}>Selecteer een monster</div>
-      <div style={{fontSize:12,marginTop:8,color:"#2a1e10"}}>Zoek op naam, type of CR</div>
-    </div>
-  );
-  const m = monster;
-  return (
     <div>
-      <div style={{fontFamily:"'Cinzel',serif",fontSize:22,color:gold,letterSpacing:"0.06em",marginBottom:2}}>{m.name}</div>
-      <div style={{fontSize:13,color:muted,marginBottom:8,fontStyle:"italic"}}>{[m.alignment,m.size,m.type].filter(Boolean).join(" ")}</div>
-      <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-        {[["CR",m.cr,gold],["XP",m.xp!=null?m.xp.toLocaleString():null,muted],["Init",sign(m.init),muted]].map(([lbl,val,col])=>val!=null&&(
-          <div key={lbl} style={{background:"#1e1508",border:`1px solid ${border}`,borderRadius:6,padding:"3px 10px",display:"flex",alignItems:"center",gap:6}}>
-            <span style={{fontSize:11,color:muted,textTransform:"uppercase",letterSpacing:"0.12em"}}>{lbl}</span>
-            <span style={{fontFamily:"'Cinzel',serif",fontSize:15,color:col}}>{val}</span>
-          </div>
-        ))}
+      <div style={{display:"flex",alignItems:"center",gap:5}}>
+        {isActive&&<span style={{color:C.gold,fontSize:10}}>▶</span>}
+        <span style={{...cinzel,fontSize:13,color:dead?"#5a3a3a":C.text,textDecoration:dead?"line-through":"none"}}>{c.name}</span>
+        <span style={{fontSize:9,padding:"1px 4px",borderRadius:3,background:`${tc}22`,border:`1px solid ${tc}44`,color:tc}}>{c.type}</span>
+        {dying&&<span style={{fontSize:9,color:"#e74c3c",...cinzel}}>DYING</span>}
+        {dead&&<span style={{fontSize:9,color:"#7a2020",...cinzel}}>DEAD</span>}
       </div>
-      <button style={{...S.btn("green"),marginBottom:14,display:"flex",alignItems:"center",gap:8}} onClick={()=>onAdd(m)}>
-        ⚔️ Voeg toe aan Initiative Tracker
-      </button>
-      {m.desc&&<div style={{fontSize:13,color:"#8a7a5a",fontStyle:"italic",lineHeight:1.5,marginBottom:12,paddingBottom:12,borderBottom:`1px solid ${border}`}}>{m.desc}</div>}
-
-      <div style={{fontSize:11,color:goldDim,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6,fontFamily:"'Cinzel',serif"}}>Defensie</div>
-      <div style={S.statRow}>
-        <StatBox label="AC" value={m.ac}/><StatBox label="Touch" value={m.touch}/><StatBox label="Flat-F" value={m.ff}/><StatBox label="HP" value={m.hp}/>
+      <div style={{marginTop:2,display:"flex",flexWrap:"wrap"}}>
+        {(c.conditions||[]).map(id=>{const cd=CONDITIONS.find(x=>x.id===id);if(!cd)return null;return <span key={id} onClick={()=>togCond(id)} style={{display:"inline-flex",alignItems:"center",gap:3,padding:"1px 6px",borderRadius:3,fontSize:10,marginRight:3,marginBottom:2,cursor:"pointer",border:"1px solid",color:cd.color,borderColor:`${cd.color}55`,background:`${cd.color}11`}}>{cd.label} ✕</span>;})}
       </div>
-      {m.hd&&<div style={{fontSize:11,color:dimmed,marginBottom:8}}>HD: {m.hd}</div>}
-      <div style={{...S.statRow,marginBottom:8}}>
-        {m.fort!=null&&<StatBox label="Fort" value={sign(m.fort)}/>}
-        {m.ref!=null&&<StatBox label="Ref" value={sign(m.ref)}/>}
-        {m.will!=null&&<StatBox label="Will" value={sign(m.will)}/>}
-        {m.sr&&<StatBox label="SR" value={m.sr}/>}
+    </div>
+    <div style={{textAlign:"center"}}><div style={lbl}>AC</div><div style={{...cinzel,fontSize:15,color:"#9ab8d8"}}>{c.ac||"—"}</div></div>
+    <div>
+      <div style={lbl}>HP</div>
+      <div style={{display:"flex",alignItems:"center",gap:4}}>
+        <span style={{...cinzel,fontSize:14,color:hpCol}}>{c.hpCurrent}</span>
+        <span style={{color:C.dim,fontSize:11}}>/{c.hpMax||"∞"}</span>
       </div>
-      {m.immunities&&<div style={{marginBottom:6,fontSize:13}}><span style={{color:muted}}>Immuniteiten: </span>{m.immunities}</div>}
-      {m.resistances&&<div style={{marginBottom:6,fontSize:13}}><span style={{color:muted}}>Resistanties: </span>{m.resistances}</div>}
-
-      <div style={{height:1,background:`linear-gradient(90deg,transparent,${border},transparent)`,margin:"12px 0"}}/>
-      <div style={{fontSize:11,color:goldDim,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6,fontFamily:"'Cinzel',serif"}}>Aanvallen</div>
-      {m.speed&&<div style={{marginBottom:6,fontSize:13}}><span style={{color:muted}}>Snelheid: </span>{m.speed}</div>}
-      {m.attacks&&<div style={{background:"#0d0f0e",border:`1px solid ${border}`,borderRadius:6,padding:"8px 12px",fontSize:12,fontFamily:"'Courier New',monospace",color:text,lineHeight:1.7,marginBottom:8}}>
-        {m.attacks.split("; ").map((a,i)=><div key={i}>{a}</div>)}
+      {c.hpMax>0&&<div style={{height:3,borderRadius:2,background:"#1a1a1a",marginTop:3,overflow:"hidden"}}><div style={{height:"100%",borderRadius:2,background:hpCol,width:`${pct}%`,transition:"width 0.3s"}}/></div>}
+    </div>
+    <div>
+      <div style={lbl}>Dmg / Heal</div>
+      <div style={{display:"flex",gap:3}}>
+        <input style={{width:46,background:"#0a0c0b",border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 5px",color:C.text,fontFamily:"inherit",fontSize:12,textAlign:"center",outline:"none"}} placeholder="dmg" value={dmg} onChange={e=>setDmg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&applyDmg()}/>
+        <button style={btn("red",{padding:"2px 6px",fontSize:13,borderRadius:4})} onClick={applyDmg}>−</button>
+      </div>
+      <div style={{display:"flex",gap:3,marginTop:3}}>
+        <input style={{width:46,background:"#0a0c0b",border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 5px",color:C.text,fontFamily:"inherit",fontSize:12,textAlign:"center",outline:"none"}} placeholder="heal" value={heal} onChange={e=>setHeal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&applyHeal()}/>
+        <button style={btn("green",{padding:"2px 6px",fontSize:13,borderRadius:4})} onClick={applyHeal}>+</button>
+      </div>
+    </div>
+    <div style={{textAlign:"center"}}><div style={lbl}>Init+</div><div style={{color:C.muted,fontSize:12}}>{sign(c.initBonus)}</div></div>
+    <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"flex-start"}}>
+      <button style={btn("",{fontSize:11,padding:"3px 8px"})} onClick={()=>setShowC(s=>!s)}>{showC?"▲":"▼"} cond</button>
+      <button style={btn("red",{fontSize:11,padding:"3px 7px"})} onClick={onRemove}>✕</button>
+      {showC&&<div style={{width:"100%",marginTop:4,display:"flex",flexWrap:"wrap",gap:3}}>
+        {CONDITIONS.map(cd=>{const a=(c.conditions||[]).includes(cd.id);return <span key={cd.id} onClick={()=>togCond(cd.id)} style={{display:"inline-flex",alignItems:"center",gap:3,padding:"1px 6px",borderRadius:3,fontSize:10,marginRight:3,marginBottom:2,cursor:"pointer",border:"1px solid",color:a?cd.color:C.dim,borderColor:a?`${cd.color}66`:C.border,background:a?`${cd.color}18`:"transparent"}}>{cd.label}</span>;})}
       </div>}
-
-      <div style={{height:1,background:`linear-gradient(90deg,transparent,${border},transparent)`,margin:"12px 0"}}/>
-      <div style={{fontSize:11,color:goldDim,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6,fontFamily:"'Cinzel',serif"}}>Eigenschappen</div>
-      <div style={S.statRow}>
-        {[["STR",m.str],["DEX",m.dex],["CON",m.con],["INT",m.int],["WIS",m.wis],["CHA",m.cha]].map(([lbl,val])=>(
-          <StatBox key={lbl} label={lbl} value={val??("—")} modifier={val!=null?abMod(val):undefined}/>
-        ))}
-      </div>
-      <div style={{...S.statRow,marginTop:6}}>
-        {m.bab!=null&&<StatBox label="BAB" value={sign(m.bab)}/>}
-        {m.cmb!=null&&<StatBox label="CMB" value={sign(m.cmb)}/>}
-        {m.cmd!=null&&<StatBox label="CMD" value={m.cmd}/>}
-      </div>
-
-      {(m.senses||m.languages||m.feats||m.skills||m.sq)&&<>
-        <div style={{height:1,background:`linear-gradient(90deg,transparent,${border},transparent)`,margin:"12px 0"}}/>
-        {[["Zintuigen",m.senses],["Talen",m.languages],["Feats",m.feats],["Skills",m.skills],["Bijzondere kwaliteiten",m.sq]].map(([lbl,val])=>val?(
-          <div key={lbl} style={{marginBottom:6,fontSize:13}}><span style={{color:muted}}>{lbl}: </span>{val}</div>
-        ):null)}
-      </>}
-
-      {m.special&&<>
-        <div style={{height:1,background:`linear-gradient(90deg,transparent,${border},transparent)`,margin:"12px 0"}}/>
-        <div style={{fontSize:11,color:goldDim,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6,fontFamily:"'Cinzel',serif"}}>Speciale Vaardigheden</div>
-        {m.special.split("; ").map((sa,i)=>(
-          <div key={i} style={{background:"#0d0f0e",border:`1px solid #2a1818`,borderRadius:6,padding:"7px 11px",fontSize:12,color:"#9a8070",lineHeight:1.6,marginBottom:5}}>{sa}</div>
-        ))}
-      </>}
-
-      <div style={{height:1,background:`linear-gradient(90deg,transparent,${border},transparent)`,margin:"14px 0"}}/>
-      <div style={{display:"flex",alignItems:"center",gap:8}}>
-        {m.source&&<span style={{fontSize:11,color:dimmed,fontStyle:"italic"}}>Bron: {m.source}</span>}
-        <a href={m.url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"#4a6a8a",textDecoration:"none",marginLeft:8}}>🔗 Archives of Nethys ↗</a>
-      </div>
     </div>
-  );
+  </div>;
 }
 
-function MonsterQuickview({ onAddToCombat }) {
-  const monsters = window.MONSTERS || [];
-  const [query, setQuery] = useState("");
-  const [filterCR, setFilterCR] = useState("");
-  const [filterType, setFilterType] = useState("");
-  const [filterSize, setFilterSize] = useState("");
-  const [selected, setSelected] = useState(null);
-  const searchRef = useRef(null);
-  useEffect(()=>{searchRef.current?.focus();},[]);
+function InitiativeTracker({onAddCombatants}){
+  const [coms,setComs]=useState([]);
+  const [activeIdx,setActiveIdx]=useState(0);
+  const [round,setRound]=useState(1);
+  const [started,setStarted]=useState(false);
+  const [log,setLog]=useState([]);
+  const [showLog,setShowLog]=useState(false);
+  const [aName,setAName]=useState(""); const [aType,setAType]=useState("Enemy");
+  const [aBonus,setABonus]=useState("0"); const [aHP,setAHP]=useState("");
+  const [aAC,setAAC]=useState(""); const [aCON,setACON]=useState("10");
+  const [rolledI,setRolledI]=useState(null);
+  const logRef=useRef(null);
+  const SK="pf1e-gm-initiative";
 
-  const filtered = useMemo(()=>{
-    const q=query.toLowerCase().trim();
-    return monsters.filter(m=>{
-      if(q&&!m.name.toLowerCase().includes(q)&&!(m.type||"").toLowerCase().includes(q))return false;
-      if(filterCR&&m.cr!==filterCR)return false;
-      if(filterType&&m.type!==filterType)return false;
-      if(filterSize&&m.size!==filterSize)return false;
-      return true;
-    }).slice(0,300);
-  },[monsters,query,filterCR,filterType,filterSize]);
+  useEffect(()=>{try{const d=localStorage.getItem(SK);if(d){const p=JSON.parse(d);setComs(p.coms||[]);setActiveIdx(p.activeIdx||0);setRound(p.round||1);setStarted(p.started||false);setLog(p.log||[]);}}catch{}},[]);
+  useEffect(()=>{try{localStorage.setItem(SK,JSON.stringify({coms,activeIdx,round,started,log}));}catch{}},[coms,activeIdx,round,started,log]);
+  useEffect(()=>{if(logRef.current)logRef.current.scrollTop=logRef.current.scrollHeight;},[log]);
 
-  function handleAdd(m) {
-    if(onAddToCombat) onAddToCombat({name:m.name,type:"Enemy",initBonus:m.init||0,hpMax:m.hp||0,ac:m.ac||10,conScore:m.con||10});
-  }
-
-  return (
-    <div style={S.mqRoot}>
-      <div style={S.mqSidebar}>
-        <div style={S.mqSearch}>
-          <input ref={searchRef} style={S.mqSearchInput} placeholder="Zoek naam of type..." value={query} onChange={e=>setQuery(e.target.value)}/>
-        </div>
-        <div style={S.mqFilters}>
-          <select style={S.mqFilterSel} value={filterCR} onChange={e=>setFilterCR(e.target.value)}>
-            <option value="">CR</option>
-            {CR_OPTIONS.map(cr=><option key={cr} value={cr}>CR {cr}</option>)}
-          </select>
-          <select style={S.mqFilterSel} value={filterType} onChange={e=>setFilterType(e.target.value)}>
-            <option value="">Type</option>
-            {CREATURE_TYPES.map(t=><option key={t} value={t}>{t}</option>)}
-          </select>
-          <select style={S.mqFilterSel} value={filterSize} onChange={e=>setFilterSize(e.target.value)}>
-            <option value="">Size</option>
-            {SIZES.map(s=><option key={s} value={s}>{s}</option>)}
-          </select>
-        </div>
-        <div style={{padding:"5px 12px",fontSize:11,color:dimmed,borderBottom:`1px solid ${border}`,display:"flex",justifyContent:"space-between"}}>
-          <span>{filtered.length}{filtered.length===300?"+":""} resultaten</span>
-          {(query||filterCR||filterType||filterSize)&&<span style={{cursor:"pointer",color:muted}} onClick={()=>{setQuery("");setFilterCR("");setFilterType("");setFilterSize("");}}>✕ wis</span>}
-        </div>
-        <div style={S.mqList}>
-          {filtered.map(m=>(
-            <div key={m.name+m.source} style={{...S.mqItem,background:selected?.name===m.name&&selected?.source===m.source?"rgba(200,149,42,0.08)":"transparent",borderLeftColor:selected?.name===m.name&&selected?.source===m.source?gold:"transparent"}}
-              onClick={()=>setSelected(m)}>
-              <span style={S.mqCR}>{m.cr}</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</div>
-                <div style={{fontSize:10,color:dimmed,fontStyle:"italic"}}>{m.size} {m.type}</div>
-              </div>
-            </div>
-          ))}
-          {filtered.length===0&&<div style={{padding:"32px 12px",textAlign:"center",color:dimmed,fontSize:13}}>Geen monsters gevonden</div>}
-        </div>
-      </div>
-      <div style={S.mqDetail}><MonsterDetail monster={selected} onAdd={handleAdd}/></div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// ENCOUNTER BUILDER
-// ═══════════════════════════════════════════════════════
-
-const { useState, useEffect, useRef, useMemo, useCallback } = React;
-
-// ═══════════════ DATA ═══════════════
-const CR_TO_XP = {"1/8":50,"1/6":65,"1/4":100,"1/3":135,"1/2":200,"1":400,"2":600,"3":800,"4":1200,"5":1600,"6":2400,"7":3200,"8":4800,"9":6400,"10":9600,"11":12800,"12":19200,"13":25600,"14":38400,"15":51200,"16":76800,"17":102400,"18":153600,"19":204800,"20":307200,"21":409600,"22":614400,"23":819200,"24":1228800,"25":1638400};
-const XP_THRESHOLDS = {"1":[50,100,150,400],"2":[100,200,300,600],"3":[150,300,450,800],"4":[200,400,625,1200],"5":[300,500,750,1600],"6":[400,750,1100,2400],"7":[500,900,1300,3200],"8":[600,1400,2000,4800],"9":[800,1600,2400,6400],"10":[1000,2000,2800,9600],"11":[1200,2400,3600,12800],"12":[1600,3000,4500,19200],"13":[2000,3800,5600,25600],"14":[2500,4500,6400,38400],"15":[3000,5500,8000,51200],"16":[3500,6500,9600,76800],"17":[4000,7500,11000,102400],"18":[5000,8500,13000,153600],"19":[5500,10000,15000,204800],"20":[6000,11000,16000,307200]};
-const PF1_CLASSES = ["Barbarian","Bard","Cleric","Druid","Fighter","Monk","Paladin","Ranger","Rogue","Sorcerer","Wizard","Alchemist","Cavalier","Gunslinger","Inquisitor","Magus","Oracle","Summoner","Witch","Ninja","Samurai","Arcanist","Bloodrager","Brawler","Hunter","Investigator","Shaman","Skald","Slayer","Swashbuckler","Warpriest","Kineticist","Medium","Mesmerist","Occultist","Psychic","Spiritualist","Shifter","Vigilante","Unchained Barbarian","Unchained Monk","Unchained Rogue","Unchained Summoner","Adept","Aristocrat","Commoner","Expert","Warrior","Arcane Archer","Arcane Trickster","Assassin","Dragon Disciple","Duelist","Eldritch Knight","Loremaster","Mystic Theurge","Pathfinder Chronicler","Shadowdancer","Antipaladin"];
-const DIFFICULTY_LABELS = ["Easy","Medium","Hard","Epic"];
-const DIFFICULTY_COLORS = ["#2ecc71","#f39c12","#e67e22","#e74c3c"];
-const STATUS_OPTS = ["Voorbereid","Actief","Voltooid","Overgeslagen"];
-const STATUS_COLORS = {"Voorbereid":"#4a9eff","Actief":"#f39c12","Voltooid":"#2ecc71","Overgeslagen":"#5a5a5a"};
-
-// ═══════════════ HELPERS ═══════════════
-function uid() { return Math.random().toString(36).slice(2,10); }
-function fmtXP(n) { return n>=1000 ? (n/1000).toFixed(n%1000===0?0:1)+"k" : String(n); }
-
-function crToNum(cr) {
-  if(cr==="1/8") return 0.125;
-  if(cr==="1/6") return 0.167;
-  if(cr==="1/4") return 0.25;
-  if(cr==="1/3") return 0.333;
-  if(cr==="1/2") return 0.5;
-  return parseFloat(cr)||0;
-}
-
-function calcEncounterXP(monsters) {
-  // Sum raw XP
-  let total = 0;
-  for(const m of monsters) {
-    const xp = CR_TO_XP[m.cr] || 0;
-    total += xp * (m.count||1);
-  }
-  return total;
-}
-
-function getMonsterCount(monsters) {
-  return monsters.reduce((s,m)=>s+(m.count||1),0);
-}
-
-function applyMultiplier(totalXP, monsterCount) {
-  // PF1e encounter multipliers based on number of monsters
-  let mult = 1;
-  if(monsterCount===1) mult=1;
-  else if(monsterCount===2) mult=1.5;
-  else if(monsterCount<=6) mult=2;
-  else if(monsterCount<=10) mult=2.5;
-  else if(monsterCount<=14) mult=3;
-  else mult=4;
-  return Math.round(totalXP*mult);
-}
-
-function getDifficulty(adjustedXP, party) {
-  if(!party||party.members.length===0) return null;
-  // Average party level
-  const avgLevel = Math.round(party.members.reduce((s,m)=>s+(m.level||1),0)/party.members.length);
-  const size = party.members.length;
-  const thresh = XP_THRESHOLDS[String(Math.min(20,Math.max(1,avgLevel)))];
-  if(!thresh) return null;
-  const xpPerPlayer = adjustedXP / size;
-  if(xpPerPlayer < thresh[0]) return {idx:-1, label:"Trivial", color:"#5a5a6a"};
-  if(xpPerPlayer < thresh[1]) return {idx:0, label:"Easy", color:DIFFICULTY_COLORS[0]};
-  if(xpPerPlayer < thresh[2]) return {idx:1, label:"Medium", color:DIFFICULTY_COLORS[1]};
-  if(xpPerPlayer < thresh[3]) return {idx:2, label:"Hard", color:DIFFICULTY_COLORS[2]};
-  return {idx:3, label:"Epic", color:DIFFICULTY_COLORS[3]};
-}
-
-function getThresholds(party) {
-  if(!party||party.members.length===0) return null;
-  const avgLevel = Math.round(party.members.reduce((s,m)=>s+(m.level||1),0)/party.members.length);
-  const size = party.members.length;
-  const thresh = XP_THRESHOLDS[String(Math.min(20,Math.max(1,avgLevel)))];
-  if(!thresh) return null;
-  return thresh.map(t=>t*size);
-}
-
-// ═══════════════ STYLES ═══════════════
-const textC=text, panel="#111310"; // reuse shared constants
-
-const EB = {
-  app:{height:"100vh",display:"flex",flexDirection:"column",fontFamily:"'Crimson Text',Georgia,serif",color:textC,background:"#0d0f0e",overflow:"hidden"},
-  topBar:{background:"linear-gradient(135deg,#1a0e05,#0d0f0e)",borderBottom:`1px solid ${border}`,padding:"10px 20px",display:"flex",alignItems:"center",gap:12,flexShrink:0},
-  title:{fontFamily:"'Cinzel','Palatino Linotype',serif",fontSize:18,fontWeight:700,color:gold,letterSpacing:"0.08em",textShadow:"0 0 20px rgba(200,149,42,0.4)"},
-  sub:{fontSize:11,color:muted,letterSpacing:"0.15em"},
-  body:{flex:1,display:"flex",overflow:"hidden"},
-  // Panels
-  leftCol:{width:260,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${border}`,background:"#0f1110",overflow:"hidden"},
-  midCol:{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",borderRight:`1px solid ${border}`},
-  rightCol:{width:320,flexShrink:0,display:"flex",flexDirection:"column",overflow:"hidden"},
-  panelHead:{background:"linear-gradient(90deg,#1a1208,#111310)",borderBottom:`1px solid ${border}`,padding:"9px 14px",display:"flex",alignItems:"center",gap:8,flexShrink:0},
-  panelTitle:{fontFamily:"'Cinzel',serif",fontSize:12,letterSpacing:"0.12em",color:gold,textTransform:"uppercase"},
-  scrollArea:{flex:1,overflowY:"auto",padding:"10px"},
-  // Inputs
-  inp:{width:"100%",background:"#0a0c0b",border:`1px solid ${border}`,borderRadius:6,padding:"6px 10px",color:textC,fontFamily:"inherit",fontSize:13,boxSizing:"border-box"},
-  sel:{width:"100%",background:"#0a0c0b",border:`1px solid ${border}`,borderRadius:6,padding:"6px 10px",color:textC,fontFamily:"inherit",fontSize:13,boxSizing:"border-box"},
-  textarea:{width:"100%",background:"#0a0c0b",border:`1px solid ${border}`,borderRadius:6,padding:"7px 10px",color:textC,fontFamily:"inherit",fontSize:12,boxSizing:"border-box",resize:"vertical",minHeight:60},
-  lbl:{fontSize:10,color:muted,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:3,display:"block"},
-  // Buttons
-  btn:(v)=>({padding:"6px 13px",borderRadius:6,fontSize:11,fontFamily:"'Cinzel',serif",letterSpacing:"0.06em",cursor:"pointer",border:"1px solid",transition:"all 0.15s",
-    ...(v==="gold"?{background:"rgba(139,94,60,0.2)",borderColor:goldDim,color:gold}:
-        v==="green"?{background:"rgba(30,60,30,0.3)",borderColor:"#3a5a3a",color:"#7ab87a"}:
-        v==="red"?{background:"rgba(80,20,20,0.2)",borderColor:"#4a1818",color:"#c0392b"}:
-        v==="blue"?{background:"rgba(30,50,80,0.3)",borderColor:"#3a5a8a",color:"#7aaad8"}:
-        {background:"transparent",borderColor:border,color:muted})}),
-  // Cards
-  card:{background:panel,border:`1px solid ${border}`,borderRadius:8,marginBottom:8,overflow:"hidden",cursor:"pointer",transition:"border-color 0.15s"},
-  cardActive:{borderColor:goldDim},
-  cardHead:{padding:"9px 12px",display:"flex",alignItems:"center",gap:8},
-  // Encounter status
-  diffBadge:(color)=>({display:"inline-flex",alignItems:"center",padding:"2px 8px",borderRadius:4,fontSize:10,fontFamily:"'Cinzel',serif",letterSpacing:"0.08em",background:`${color}18`,border:`1px solid ${color}55`,color}),
-};
-
-// ═══════════════ MONSTER SEARCH ═══════════════
-function MonsterSearch({ onAdd }) {
-  const [q, setQ] = useState("");
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  const monsters = window.MONSTERS||[];
-
-  const results = useMemo(()=>{
-    if(q.length<2) return [];
-    const ql=q.toLowerCase();
-    return monsters.filter(m=>m.name.toLowerCase().includes(ql)).slice(0,8);
-  },[q]);
-
+  // Accept monsters from other modules
   useEffect(()=>{
-    setOpen(results.length>0);
-  },[results]);
-
-  useEffect(()=>{
-    function handler(e){ if(ref.current&&!ref.current.contains(e.target)) setOpen(false); }
-    document.addEventListener("mousedown",handler);
-    return()=>document.removeEventListener("mousedown",handler);
+    function checkImport(){
+      try{
+        const raw=localStorage.getItem("pf1e-tracker-import");
+        if(!raw)return;
+        const d=JSON.parse(raw);
+        if(d&&d.ts&&d.ts>Date.now()-5000){
+          setComs(p=>[...p,...(d.coms||[])]);
+          localStorage.removeItem("pf1e-tracker-import");
+        }
+      }catch{}
+    }
+    checkImport();
+    window.addEventListener("focus",checkImport);
+    return()=>window.removeEventListener("focus",checkImport);
   },[]);
 
-  return (
-    <div ref={ref} style={{position:"relative"}}>
-      <input style={EB.inp} placeholder="Zoek monster om toe te voegen..." value={q}
-        onChange={e=>{setQ(e.target.value);}} onFocus={()=>results.length>0&&setOpen(true)}/>
-      {open&&(
-        <div style={{position:"absolute",top:"100%",left:0,right:0,background:"#0f1110",border:`1px solid ${goldDim}`,borderRadius:6,zIndex:50,maxHeight:260,overflowY:"auto",marginTop:3}}>
-          {results.map(m=>(
-            <div key={m.name+m.source} style={{padding:"7px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:8,borderBottom:`1px solid ${border}`}}
-              onMouseDown={()=>{onAdd(m);setQ("");setOpen(false);}}>
-              <span style={{fontSize:10,fontFamily:"'Cinzel',serif",padding:"1px 5px",borderRadius:3,background:"#1a1208",border:`1px solid ${border}`,color:gold,minWidth:26,textAlign:"center"}}>{m.cr}</span>
-              <div>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:textC}}>{m.name}</div>
-                <div style={{fontSize:10,color:dimmed,fontStyle:"italic"}}>{m.size} {m.type} · {m.source}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+  function addLog(msg){const t=new Date().toLocaleTimeString("nl",{hour:"2-digit",minute:"2-digit"});setLog(p=>[...p.slice(-99),`[${t}] ${msg}`]);}
+  function addCom(){
+    if(!aName.trim())return;
+    const bonus=parseInt(aBonus)||0;
+    const init=rolledI!==null?rolledI:d20()+bonus;
+    const c={id:uid(),name:aName.trim(),type:aType,initBonus:bonus,initiative:init,hpMax:parseInt(aHP)||0,hpCurrent:parseInt(aHP)||0,ac:parseInt(aAC)||0,conScore:parseInt(aCON)||10,conditions:[]};
+    setComs(p=>[...p,c]);addLog(`${c.name} (${c.type}) — Init ${c.initiative}`);
+    setAName("");setAHP("");setAAC("");setABonus("0");setRolledI(null);
+  }
+  function updateC(id,upd){setComs(p=>p.map(c=>{if(c.id!==id)return c;if("hpCurrent"in upd){const d=upd.hpCurrent-c.hpCurrent;if(d<0)addLog(`${c.name} −${-d} HP → ${upd.hpCurrent}`);else if(d>0)addLog(`${c.name} +${d} HP → ${upd.hpCurrent}`);}return{...c,...upd};}));}
+  function startCombat(){const s=[...coms].sort((a,b)=>b.initiative-a.initiative);setComs(s);setActiveIdx(0);setStarted(true);setRound(1);addLog("═══ COMBAT GESTART ═══");addLog("Volgorde: "+s.map(c=>`${c.name}(${c.initiative})`).join(", "));}
+  function nextTurn(){const n=(activeIdx+1)%coms.length;if(n===0){setRound(r=>r+1);addLog(`─── Ronde ${round+1} ───`);}setActiveIdx(n);if(coms[n])addLog(`Beurt: ${coms[n].name}`);}
+
+  const sorted=started?coms:[...coms].sort((a,b)=>b.initiative-a.initiative);
+  const active=sorted[activeIdx];
+
+  return <div style={{height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    {/* Toolbar */}
+    <div style={{padding:"10px 20px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:8,alignItems:"center",background:C.bg,flexShrink:0}}>
+      {!started?<>
+        <button style={btn("green")} onClick={()=>{setComs(p=>p.map(c=>({...c,initiative:d20()+(c.initBonus||0)})));addLog("🎲 All initiatives rolled");}}>🎲 Roll All</button>
+        <button style={btn("gold")} onClick={startCombat} disabled={coms.length===0}>▶ Start Combat</button>
+      </>:<>
+        <button style={{...btn("gold"),fontSize:13}} onClick={nextTurn}>Volgende beurt ▶</button>
+        <button style={btn("red")} onClick={()=>{setStarted(false);setActiveIdx(0);addLog("■ Combat gestopt");}}>■ Stop</button>
+        {started&&<div style={{...cinzel,fontSize:11,color:C.gold,marginLeft:4}}>Ronde {round}</div>}
+      </>}
+      <button style={btn("",{fontSize:11})} onClick={()=>setShowLog(s=>!s)}>{showLog?"▲":"▼"} Log</button>
+      <button style={{...btn("red",{fontSize:11}),marginLeft:"auto"}} onClick={()=>{if(window.confirm("Reset encounter?")){{setComs([]);setActiveIdx(0);setRound(1);setStarted(false);}}}}>🗑 Reset</button>
+      <span style={{fontSize:11,color:C.dim}}>{coms.length} deelnemers</span>
     </div>
-  );
+    {/* Log */}
+    {showLog&&<div ref={logRef} style={{background:"#0a0c0b",borderBottom:`1px solid ${C.border}`,height:100,overflowY:"auto",padding:"6px 20px",flexShrink:0}}>
+      {log.map((e,i)=><div key={i} style={{fontSize:11,color:C.muted,fontFamily:"monospace",borderBottom:`1px solid ${C.border}`,padding:"2px 0"}}>{e}</div>)}
+    </div>}
+    {/* Active banner */}
+    {started&&active&&<div style={{background:"rgba(200,149,42,0.07)",borderBottom:`1px solid rgba(200,149,42,0.2)`,padding:"8px 20px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
+      <span style={{fontSize:16}}>⚔️</span>
+      <div><div style={{fontSize:10,color:C.muted,letterSpacing:"0.15em",textTransform:"uppercase"}}>Actieve beurt</div>
+        <div style={{...cinzel,fontSize:18,color:C.gold}}>{active.name}</div></div>
+      <div style={{marginLeft:"auto",display:"flex",gap:16}}>
+        <div style={{textAlign:"center"}}><div style={{fontSize:10,color:C.muted}}>AC</div><div style={{...cinzel,fontSize:20,color:"#9ab8d8"}}>{active.ac||"—"}</div></div>
+        <div style={{textAlign:"center"}}><div style={{fontSize:10,color:C.muted}}>HP</div><div style={{...cinzel,fontSize:20,color:"#2ecc71"}}>{active.hpCurrent}<span style={{fontSize:13,color:C.dim}}>/{active.hpMax||"∞"}</span></div></div>
+      </div>
+    </div>}
+    {/* List */}
+    <div style={{flex:1,overflowY:"auto",padding:"12px 20px"}}>
+      {sorted.length===0?<Empty icon="⚔️" text="Geen deelnemers" sub="Voeg PCs en vijanden toe via het formulier hieronder"/>:
+        sorted.map((c,i)=><CombatantRow key={c.id} c={c} isActive={started&&i===activeIdx} onUpdate={u=>updateC(c.id,u)} onRemove={()=>{setComs(p=>p.filter(x=>x.id!==c.id));addLog(`${c.name} verwijderd`);}}/>)}
+    </div>
+    {/* Add form */}
+    <div style={{borderTop:`1px solid ${C.border}`,padding:"12px 20px",background:C.bg,flexShrink:0}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 80px 60px 70px 70px 80px",gap:8,alignItems:"end"}}>
+        <div><label style={lbl}>Naam</label><input style={inp()} value={aName} onChange={e=>setAName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCom()} placeholder="Goblin, Harsk..."/></div>
+        <div><label style={lbl}>Type</label><select style={sel()} value={aType} onChange={e=>setAType(e.target.value)}>{["PC","Enemy","Ally","Summon"].map(t=><option key={t}>{t}</option>)}</select></div>
+        <div><label style={lbl}>Init +</label><input style={inp()} type="number" value={aBonus} onChange={e=>setABonus(e.target.value)}/></div>
+        <div><label style={lbl}>HP</label><input style={inp()} type="number" value={aHP} onChange={e=>setAHP(e.target.value)} placeholder="0"/></div>
+        <div><label style={lbl}>AC</label><input style={inp()} type="number" value={aAC} onChange={e=>setAAC(e.target.value)} placeholder="10"/></div>
+        <div><label style={lbl}>CON</label><input style={inp()} type="number" value={aCON} onChange={e=>setACON(e.target.value)} placeholder="10"/></div>
+      </div>
+      <div style={{display:"flex",gap:8,marginTop:10,alignItems:"center"}}>
+        <button style={btn()} onClick={()=>{const b=parseInt(aBonus)||0;setRolledI(d20()+b);}}>🎲 Roll d20</button>
+        {rolledI!==null&&<span style={{color:C.gold,...cinzel,fontSize:14}}>= {rolledI}</span>}
+        <button style={btn("gold")} onClick={addCom}>+ Toevoegen</button>
+      </div>
+    </div>
+  </div>;
 }
 
-// ═══════════════ ENCOUNTER DETAIL ═══════════════
-function EncounterDetail({ encounter, party, onChange, onSendToTracker }) {
-  if(!encounter) return (
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",color:dimmed,textAlign:"center"}}>
-      <div style={{fontSize:48,marginBottom:16,opacity:0.3}}>⚔️</div>
-      <div style={{fontFamily:"'Cinzel',serif",fontSize:14,letterSpacing:"0.1em"}}>Selecteer een encounter</div>
-      <div style={{fontSize:12,marginTop:8,color:"#2a1e10"}}>Of maak een nieuwe aan</div>
-    </div>
-  );
-
-  const rawXP = calcEncounterXP(encounter.monsters||[]);
-  const monCount = getMonsterCount(encounter.monsters||[]);
-  const adjXP = applyMultiplier(rawXP, monCount);
-  const diff = getDifficulty(adjXP, party);
-  const thresholds = getThresholds(party);
-  const partySize = party?.members?.length||0;
-  const avgLevel = partySize>0 ? Math.round(party.members.reduce((s,m)=>s+(m.level||1),0)/partySize) : 1;
-
-  function updateField(field,val) { onChange({...encounter,[field]:val}); }
-  function addMonster(m) {
-    const existing = (encounter.monsters||[]).findIndex(x=>x.name===m.name&&x.cr===m.cr);
-    if(existing>=0) {
-      const updated=[...(encounter.monsters||[])];
-      updated[existing]={...updated[existing],count:(updated[existing].count||1)+1};
-      onChange({...encounter,monsters:updated});
-    } else {
-      onChange({...encounter,monsters:[...(encounter.monsters||[]),{id:uid(),name:m.name,cr:m.cr,count:1,hp:m.hp,ac:m.ac,init:m.init,con:m.con}]});
-    }
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODULE 2 — MONSTER QUICKVIEW
+// ═══════════════════════════════════════════════════════════════════════════════
+function MonsterQuickview({onAddToCombat}){
+  const monsters=window.MONSTERS||[];
+  const [q,setQ]=useState(""); const [fCR,setFCR]=useState(""); const [fType,setFType]=useState(""); const [fSize,setFSize]=useState("");
+  const [sel2,setSel2]=useState(null);
+  const sRef=useRef(null);
+  useEffect(()=>{sRef.current?.focus();},[]);
+  const filtered=useMemo(()=>{const ql=q.toLowerCase().trim();return monsters.filter(m=>{if(ql&&!m.name.toLowerCase().includes(ql)&&!(m.type||"").toLowerCase().includes(ql))return false;if(fCR&&m.cr!==fCR)return false;if(fType&&m.type!==fType)return false;if(fSize&&m.size!==fSize)return false;return true;}).slice(0,300);},[monsters,q,fCR,fType,fSize]);
+  function addToTracker(m){
+    const c={id:uid(),name:m.name,type:"Enemy",initBonus:m.init||0,initiative:0,hpMax:m.hp||0,hpCurrent:m.hp||0,ac:m.ac||10,conScore:m.con||10,conditions:[]};
+    if(onAddToCombat)onAddToCombat(c);
   }
-  function removeMonster(id) { onChange({...encounter,monsters:(encounter.monsters||[]).filter(m=>m.id!==id)}); }
-  function updateCount(id,delta) {
-    const updated=(encounter.monsters||[]).map(m=>m.id===id?{...m,count:Math.max(1,(m.count||1)+delta)}:m);
-    onChange({...encounter,monsters:updated});
-  }
-
-  // XP bar calculation
-  const barMax = thresholds ? thresholds[3]*1.2 : adjXP*2||1;
-  const barPct = Math.min(100,(adjXP/barMax)*100);
-  const threshPcts = thresholds ? thresholds.map(t=>Math.min(100,(t/barMax)*100)) : [];
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      {/* Header */}
-      <div style={{...EB.panelHead,borderBottom:`1px solid ${border}`,flexShrink:0}}>
-        <div style={{flex:1}}>
-          <input style={{...EB.inp,fontFamily:"'Cinzel',serif",fontSize:15,color:gold,background:"transparent",border:"none",padding:"2px 0"}}
-            value={encounter.name} onChange={e=>updateField("name",e.target.value)} placeholder="Encounter naam..."/>
-        </div>
-        <select style={{...EB.sel,width:"auto",fontSize:11}} value={encounter.status||"Voorbereid"} onChange={e=>updateField("status",e.target.value)}>
-          {STATUS_OPTS.map(s=><option key={s}>{s}</option>)}
-        </select>
-        <button style={EB.btn("green")} onClick={()=>onSendToTracker(encounter)} title="Stuur naar Initiative Tracker">
-          ▶ Naar Tracker
-        </button>
+  const sm=sel2;
+  function SB({label,value,mod}){return <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 9px",textAlign:"center",minWidth:52}}>
+    <div style={{fontSize:9,color:C.muted,letterSpacing:"0.12em",textTransform:"uppercase"}}>{label}</div>
+    <div style={{...cinzel,fontSize:15,color:C.text,lineHeight:1.2}}>{value??("—")}</div>
+    {mod!==undefined&&<div style={{fontSize:10,color:C.muted}}>{mod}</div>}
+  </div>;}
+  function abMod(s){if(s==null)return null;const m=Math.floor((s-10)/2);return(m>=0?"+":"")+m;}
+  return <div style={{height:"100%",display:"flex",overflow:"hidden"}}>
+    {/* Sidebar */}
+    <div style={{width:280,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${C.border}`,background:"#0f1110",overflow:"hidden"}}>
+      <div style={{padding:"10px 12px",borderBottom:`1px solid ${C.border}`}}>
+        <input ref={sRef} style={inp({boxSizing:"border-box",fontSize:14})} placeholder="Zoek naam of type..." value={q} onChange={e=>setQ(e.target.value)}/>
       </div>
-
-      <div style={{flex:1,overflowY:"auto",padding:"14px 16px"}}>
-        {/* Difficulty summary */}
-        {party && (
-          <div style={{background:"#0d0f0e",border:`1px solid ${border}`,borderRadius:8,padding:"12px 14px",marginBottom:14}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-              <div style={{flex:1}}>
-                <div style={{fontSize:10,color:muted,textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:2}}>Encounter moeilijkheid</div>
-                <div style={{display:"flex",alignItems:"baseline",gap:8}}>
-                  <span style={{fontFamily:"'Cinzel',serif",fontSize:22,color:diff?.color||dimmed}}>{diff?.label||"—"}</span>
-                  {diff&&<span style={{fontSize:12,color:muted}}>voor {partySize} spelers (gem. level {avgLevel})</span>}
-                </div>
-              </div>
-              <div style={{textAlign:"right"}}>
-                <div style={{fontSize:10,color:muted,textTransform:"uppercase",letterSpacing:"0.1em"}}>Gecorrigeerde XP</div>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:20,color:gold}}>{fmtXP(adjXP)}</div>
-                <div style={{fontSize:10,color:dimmed}}>Basis: {fmtXP(rawXP)} × {(adjXP/Math.max(1,rawXP)).toFixed(1)}</div>
-              </div>
-            </div>
-            {/* XP bar */}
-            <div style={{height:8,background:"#1a1a1a",borderRadius:4,position:"relative",overflow:"visible"}}>
-              {threshPcts.map((pct,i)=>(
-                <div key={i} style={{position:"absolute",left:`${pct}%`,top:-2,height:12,width:1,background:`${DIFFICULTY_COLORS[i]}88`,zIndex:2}}/>
-              ))}
-              <div style={{height:"100%",borderRadius:4,background:diff?.color||"#3a3a3a",width:`${barPct}%`,transition:"width 0.4s",minWidth:adjXP>0?4:0}}/>
-            </div>
-            {thresholds&&(
-              <div style={{display:"flex",gap:8,marginTop:6,flexWrap:"wrap"}}>
-                {DIFFICULTY_LABELS.map((lbl,i)=>(
-                  <div key={lbl} style={{fontSize:10,color:DIFFICULTY_COLORS[i]}}>
-                    {lbl}: {fmtXP(thresholds[i])}
-                  </div>
-                ))}
-              </div>
-            )}
-            {!party&&<div style={{fontSize:11,color:dimmed,marginTop:4}}>Selecteer een party om moeilijkheid te berekenen</div>}
+      <div style={{padding:"6px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:5}}>
+        <select style={sel({flex:1,fontSize:11,padding:"4px 6px"})} value={fCR} onChange={e=>setFCR(e.target.value)}><option value="">CR</option>{CR_LIST.map(c=><option key={c} value={c}>CR {c}</option>)}</select>
+        <select style={sel({flex:1,fontSize:11,padding:"4px 6px"})} value={fType} onChange={e=>setFType(e.target.value)}><option value="">Type</option>{CTYPES_ALL.map(t=><option key={t} value={t}>{t}</option>)}</select>
+        <select style={sel({flex:1,fontSize:11,padding:"4px 6px"})} value={fSize} onChange={e=>setFSize(e.target.value)}><option value="">Size</option>{SIZES_ALL.map(s=><option key={s} value={s}>{s}</option>)}</select>
+      </div>
+      <div style={{padding:"5px 12px",fontSize:11,color:C.dim,borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between"}}>
+        <span>{filtered.length}{filtered.length===300?"+":""} resultaten</span>
+        {(q||fCR||fType||fSize)&&<span style={{cursor:"pointer",color:C.muted}} onClick={()=>{setQ("");setFCR("");setFType("");setFSize("");}}>✕ wis</span>}
+      </div>
+      <div style={{flex:1,overflowY:"auto"}}>
+        {filtered.map(m=><div key={m.name+(m.source||"")} onClick={()=>setSel2(m)} style={{padding:"7px 12px",cursor:"pointer",borderLeft:`3px solid ${sel2?.name===m.name&&sel2?.source===m.source?C.gold:"transparent"}`,background:sel2?.name===m.name&&sel2?.source===m.source?"rgba(200,149,42,0.08)":"transparent",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:7}}>
+          <span style={{fontSize:10,...cinzel,padding:"1px 5px",borderRadius:3,background:"#1a1208",border:`1px solid ${C.border}`,color:C.gold,flexShrink:0,minWidth:26,textAlign:"center"}}>{m.cr}</span>
+          <div style={{flex:1,minWidth:0}}>
+            <div style={{...cinzel,fontSize:12,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</div>
+            <div style={{fontSize:10,color:C.dim,fontStyle:"italic"}}>{m.size} {m.type}</div>
           </div>
-        )}
+        </div>)}
+        {filtered.length===0&&<div style={{padding:"32px 12px",textAlign:"center",color:C.dim,fontSize:13}}>Geen monsters gevonden</div>}
+      </div>
+    </div>
+    {/* Detail */}
+    <div style={{flex:1,overflowY:"auto",padding:"20px 24px"}}>
+      {!sm?<Empty icon="📖" text="Selecteer een monster" sub="Zoek op naam, type of CR"/>:<>
+        <div style={{...cinzel,fontSize:22,color:C.gold,letterSpacing:"0.06em",marginBottom:2}}>{sm.name}</div>
+        <div style={{fontSize:13,color:C.muted,marginBottom:8,fontStyle:"italic"}}>{[sm.alignment,sm.size,sm.type].filter(Boolean).join(" ")}</div>
+        <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+          {[["CR",sm.cr,C.gold],["XP",sm.xp!=null?sm.xp.toLocaleString():null,C.muted],["Init",sign(sm.init),C.muted]].map(([l,v,col])=>v!=null&&<div key={l} style={{background:"#1e1508",border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 10px",display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:"0.12em"}}>{l}</span><span style={{...cinzel,fontSize:15,color:col}}>{v}</span></div>)}
+        </div>
+        <button style={{...btn("green"),marginBottom:14,display:"flex",alignItems:"center",gap:8}} onClick={()=>addToTracker(sm)}>⚔️ Voeg toe aan Initiative Tracker</button>
+        {sm.desc&&<div style={{fontSize:13,color:"#8a7a5a",fontStyle:"italic",lineHeight:1.5,marginBottom:12,paddingBottom:12,borderBottom:`1px solid ${C.border}`}}>{sm.desc}</div>}
+        <div style={{...cinzel,fontSize:11,color:C.goldDim,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>Defensie</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+          {[["AC",sm.ac],["Touch",sm.touch],["Flat-F",sm.ff],["HP",sm.hp]].map(([l,v])=><SB key={l} label={l} value={v}/>)}
+        </div>
+        {sm.hd&&<div style={{fontSize:11,color:C.dim,marginBottom:8}}>HD: {sm.hd}</div>}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+          {sm.fort!=null&&<SB label="Fort" value={sign(sm.fort)}/>}
+          {sm.ref!=null&&<SB label="Ref" value={sign(sm.ref)}/>}
+          {sm.will!=null&&<SB label="Will" value={sign(sm.will)}/>}
+          {sm.sr&&<SB label="SR" value={sm.sr}/>}
+        </div>
+        {sm.immunities&&<div style={{marginBottom:6,fontSize:13}}><span style={{color:C.muted}}>Immuniteiten: </span>{sm.immunities}</div>}
+        {sm.resistances&&<div style={{marginBottom:6,fontSize:13}}><span style={{color:C.muted}}>Resistanties: </span>{sm.resistances}</div>}
+        <Divider/>
+        <div style={{...cinzel,fontSize:11,color:C.goldDim,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>Aanvallen</div>
+        {sm.speed&&<div style={{marginBottom:6,fontSize:13}}><span style={{color:C.muted}}>Snelheid: </span>{sm.speed}</div>}
+        {sm.attacks&&<div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"8px 12px",fontSize:12,fontFamily:"monospace",color:C.text,lineHeight:1.7,marginBottom:8}}>{sm.attacks.split("; ").map((a,i)=><div key={i}>{a}</div>)}</div>}
+        <Divider/>
+        <div style={{...cinzel,fontSize:11,color:C.goldDim,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>Eigenschappen</div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+          {[["STR",sm.str],["DEX",sm.dex],["CON",sm.con],["INT",sm.int],["WIS",sm.wis],["CHA",sm.cha]].map(([l,v])=><SB key={l} label={l} value={v??("—")} mod={v!=null?abMod(v):undefined}/>)}
+        </div>
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
+          {sm.bab!=null&&<SB label="BAB" value={sign(sm.bab)}/>}
+          {sm.cmb!=null&&<SB label="CMB" value={sign(sm.cmb)}/>}
+          {sm.cmd!=null&&<SB label="CMD" value={sm.cmd}/>}
+        </div>
+        {(sm.senses||sm.languages||sm.feats||sm.skills||sm.sq)&&<><Divider/>
+          {[["Zintuigen",sm.senses],["Talen",sm.languages],["Feats",sm.feats],["Skills",sm.skills],["Bijzondere kwaliteiten",sm.sq]].map(([l,v])=>v?<div key={l} style={{marginBottom:6,fontSize:13}}><span style={{color:C.muted}}>{l}: </span>{v}</div>:null)}
+        </>}
+        {sm.special&&<><Divider/>
+          <div style={{...cinzel,fontSize:11,color:C.goldDim,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>Speciale Vaardigheden</div>
+          {sm.special.split("; ").map((sa,i)=><div key={i} style={{background:C.bg,border:"1px solid #2a1818",borderRadius:6,padding:"7px 11px",fontSize:12,color:"#9a8070",lineHeight:1.6,marginBottom:5}}>{sa}</div>)}
+        </>}
+        <Divider/>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          {sm.source&&<span style={{fontSize:11,color:C.dim,fontStyle:"italic"}}>Bron: {sm.source}</span>}
+          <a href={sm.url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"#4a6a8a",textDecoration:"none",marginLeft:8}}>🔗 Archives of Nethys ↗</a>
+        </div>
+      </>}
+    </div>
+  </div>;
+}
 
-        {/* Monster list */}
-        <div style={{marginBottom:12}}>
-          <div style={{fontSize:11,color:gold,letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:"'Cinzel',serif",marginBottom:8}}>Monsters</div>
-          {(encounter.monsters||[]).length===0 && (
-            <div style={{textAlign:"center",padding:"20px",color:dimmed,fontSize:12,border:`1px dashed ${border}`,borderRadius:6}}>
-              Geen monsters — voeg toe via zoekbalk
-            </div>
-          )}
-          {(encounter.monsters||[]).map(m=>{
-            const xpEach = CR_TO_XP[m.cr]||0;
-            return (
-              <div key={m.id} className="fade-in" style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:"#0d0f0e",border:`1px solid ${border}`,borderRadius:6,marginBottom:5}}>
-                <span style={{fontSize:10,fontFamily:"'Cinzel',serif",padding:"2px 6px",borderRadius:3,background:"#1a1208",border:`1px solid ${border}`,color:gold,minWidth:28,textAlign:"center"}}>{m.cr}</span>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:textC,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</div>
-                  <div style={{fontSize:10,color:dimmed}}>{fmtXP(xpEach)} XP elk · AC {m.ac||"?"} · HP {m.hp||"?"}</div>
-                </div>
-                <div style={{display:"flex",alignItems:"center",gap:4}}>
-                  <button style={{...EB.btn(""),padding:"2px 7px",fontSize:13}} onClick={()=>updateCount(m.id,-1)}>−</button>
-                  <span style={{fontFamily:"'Cinzel',serif",fontSize:14,color:textC,minWidth:20,textAlign:"center"}}>{m.count||1}</span>
-                  <button style={{...EB.btn(""),padding:"2px 7px",fontSize:13}} onClick={()=>updateCount(m.id,1)}>+</button>
-                </div>
-                <div style={{fontSize:11,color:muted,minWidth:40,textAlign:"right"}}>{fmtXP(xpEach*(m.count||1))}</div>
-                <button style={{...EB.btn("red"),padding:"2px 6px",fontSize:11}} onClick={()=>removeMonster(m.id)}>✕</button>
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODULE 3 — ENCOUNTER BUILDER
+// ═══════════════════════════════════════════════════════════════════════════════
+function MonsterSearch({onAdd}){
+  const [q,setQ]=useState(""); const [open,setOpen]=useState(false);
+  const ref=useRef(null); const monsters=window.MONSTERS||[];
+  const results=useMemo(()=>{if(q.length<2)return[];return monsters.filter(m=>m.name.toLowerCase().includes(q.toLowerCase())).slice(0,8);},[q]);
+  useEffect(()=>{setOpen(results.length>0);},[results]);
+  useEffect(()=>{function h(e){if(ref.current&&!ref.current.contains(e.target))setOpen(false);}document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h);},[]);
+  return <div ref={ref} style={{position:"relative"}}>
+    <input style={inp({boxSizing:"border-box"})} placeholder="Zoek monster om toe te voegen..." value={q} onChange={e=>setQ(e.target.value)} onFocus={()=>results.length>0&&setOpen(true)}/>
+    {open&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#0f1110",border:`1px solid ${C.goldDim}`,borderRadius:6,zIndex:50,maxHeight:240,overflowY:"auto",marginTop:3}}>
+      {results.map(m=><div key={m.name+(m.source||"")} style={{padding:"7px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:8,borderBottom:`1px solid ${C.border}`}} onMouseDown={()=>{onAdd(m);setQ("");setOpen(false);}}>
+        <span style={{fontSize:10,...cinzel,padding:"1px 5px",borderRadius:3,background:"#1a1208",border:`1px solid ${C.border}`,color:C.gold,minWidth:26,textAlign:"center"}}>{m.cr}</span>
+        <div><div style={{...cinzel,fontSize:12,color:C.text}}>{m.name}</div><div style={{fontSize:10,color:C.dim,fontStyle:"italic"}}>{m.size} {m.type} · {m.source}</div></div>
+      </div>)}
+    </div>}
+  </div>;
+}
+
+function EncounterBuilder({onToast}){
+  const SK="pf1e-enc-builder";
+  const [sessions,setSessions]=useState([]);
+  const [parties,setParties]=useState([]);
+  const [activeSessId,setActiveSessId]=useState(null);
+  const [activeEncId,setActiveEncId]=useState(null);
+  const [activePartyId,setActivePartyId]=useState(null);
+  const [rightTab,setRightTab]=useState("party");
+
+  useEffect(()=>{try{const d=localStorage.getItem(SK);if(d){const p=JSON.parse(d);setSessions(p.sessions||[]);setParties(p.parties||[]);setActiveSessId(p.activeSessId||null);setActiveEncId(p.activeEncId||null);setActivePartyId(p.activePartyId||null);}}catch{}},[]);
+  useEffect(()=>{try{localStorage.setItem(SK,JSON.stringify({sessions,parties,activeSessId,activeEncId,activePartyId}));}catch{}},[sessions,parties,activeSessId,activeEncId,activePartyId]);
+
+  function updSess(id,fn){setSessions(p=>p.map(s=>s.id===id?fn(s):s));}
+  function updParty(id,fn){setParties(p=>p.map(x=>x.id===id?fn(x):x));}
+  const activeSess=sessions.find(s=>s.id===activeSessId);
+  const activeEnc=activeSess?.encounters?.find(e=>e.id===activeEncId);
+  const activeParty=parties.find(p=>p.id===activePartyId);
+
+  function createSess(){const s={id:uid(),name:`Sessie ${sessions.length+1}`,date:new Date().toLocaleDateString("nl"),notes:"",encounters:[]};setSessions(p=>[s,...p]);setActiveSessId(s.id);setActiveEncId(null);}
+  function createEnc(){if(!activeSessId)return;const e={id:uid(),name:`Encounter ${((activeSess?.encounters||[]).length+1)}`,status:"Voorbereid",monsters:[],notes:"",loot:""};updSess(activeSessId,s=>({...s,encounters:[...(s.encounters||[]),e]}));setActiveEncId(e.id);}
+  function updEnc(upd){updSess(activeSessId,s=>({...s,encounters:s.encounters.map(e=>e.id===upd.id?upd:e)}));}
+  function delEnc(id){updSess(activeSessId,s=>({...s,encounters:s.encounters.filter(e=>e.id!==id)}));if(activeEncId===id)setActiveEncId(null);}
+  function dupEnc(id){const e=activeSess?.encounters?.find(x=>x.id===id);if(!e)return;const c={...e,id:uid(),name:e.name+" (kopie)",status:"Voorbereid"};updSess(activeSessId,s=>({...s,encounters:[...s.encounters,c]}));setActiveEncId(c.id);if(onToast)onToast("Encounter gedupliceerd");}
+  function createParty(){const p={id:uid(),name:`Party ${parties.length+1}`,members:[]};setParties(prev=>[...prev,p]);setActivePartyId(p.id);}
+  function sendToTracker(enc){
+    const coms=(enc.monsters||[]).flatMap(m=>Array.from({length:m.count||1},(_,i)=>({id:uid(),name:(m.count||1)>1?`${m.name} ${i+1}`:m.name,type:"Enemy",initBonus:m.init||0,initiative:0,hpMax:m.hp||0,hpCurrent:m.hp||0,ac:m.ac||10,conScore:m.con||10,conditions:[]})));
+    if(activeParty)activeParty.members.forEach(m=>coms.push({id:uid(),name:m.name||m.cls,type:"PC",initBonus:0,initiative:0,hpMax:0,hpCurrent:0,ac:10,conScore:10,conditions:[]}));
+    localStorage.setItem("pf1e-tracker-import",JSON.stringify({coms,ts:Date.now()}));
+    if(onToast)onToast(`${coms.length} deelnemers klaar voor Initiative Tracker ✓`);
+  }
+  function exportData(){const blob=new Blob([JSON.stringify({sessions,parties},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="pf1e-encounters.json";a.click();URL.revokeObjectURL(url);}
+  function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.sessions)setSessions(p=>[...p,...d.sessions]);if(d.parties)setParties(p=>[...p,...d.parties]);if(onToast)onToast("Data geïmporteerd ✓");}catch{if(onToast)onToast("Fout bij importeren","#e74c3c");}};r.readAsText(f);e.target.value="";}
+
+  const sessXP=activeSess?(activeSess.encounters||[]).reduce((s,e)=>s+adjXP(e.monsters||[]),0):0;
+
+  return <div style={{height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    {/* Toolbar */}
+    <div style={{padding:"8px 16px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:8,alignItems:"center",background:C.bg,flexShrink:0}}>
+      <button style={btn("gold",{fontSize:11})} onClick={createSess}>+ Sessie</button>
+      <button style={btn("",{fontSize:11})} onClick={createEnc} disabled={!activeSessId}>+ Encounter</button>
+      <div style={{marginLeft:"auto",display:"flex",gap:6}}>
+        <button style={btn("blue",{fontSize:11})} onClick={exportData}>⬇ Export</button>
+        <label style={{...btn("",{}),fontSize:11,cursor:"pointer"}}>⬆ Import<input type="file" accept=".json" style={{display:"none"}} onChange={importData}/></label>
+      </div>
+    </div>
+    <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+      {/* Col 1: Sessions */}
+      <div style={{width:180,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${C.border}`,background:"#0f1110",overflow:"hidden"}}>
+        <PanelHead title="Sessies"/>
+        <div style={{flex:1,overflowY:"auto",padding:6}}>
+          {sessions.length===0&&<div style={{padding:"20px 10px",textAlign:"center",color:C.dim,fontSize:12}}>Maak een sessie aan</div>}
+          {sessions.map(s=><div key={s.id} onClick={()=>{setActiveSessId(s.id);setActiveEncId(null);}} style={{padding:"8px 10px",borderRadius:6,marginBottom:4,cursor:"pointer",background:s.id===activeSessId?"rgba(200,149,42,0.08)":"transparent",border:`1px solid ${s.id===activeSessId?C.goldDim:C.border}`}}>
+            <div style={{...cinzel,fontSize:11,color:s.id===activeSessId?C.gold:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
+            <div style={{fontSize:10,color:C.dim,marginTop:2}}>{s.date} · {(s.encounters||[]).length} enc.</div>
+            <button onClick={e=>{e.stopPropagation();if(window.confirm("Sessie verwijderen?"))setSessions(p=>p.filter(x=>x.id!==s.id));}} style={{...btn("red",{fontSize:9,padding:"1px 5px",marginTop:4})}}>✕</button>
+          </div>)}
+        </div>
+      </div>
+      {/* Col 2: Encounters */}
+      <div style={{width:210,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${C.border}`,background:"#0f1110",overflow:"hidden"}}>
+        <PanelHead title={activeSess?activeSess.name:"Encounters"}>
+          {activeSess&&<span style={{fontSize:10,color:C.dim,marginLeft:"auto"}}>{fmtXP(sessXP)} XP</span>}
+        </PanelHead>
+        <div style={{flex:1,overflowY:"auto",padding:6}}>
+          {!activeSess&&<div style={{padding:"20px 10px",textAlign:"center",color:C.dim,fontSize:12}}>Selecteer een sessie</div>}
+          {(activeSess?.encounters||[]).map(enc=>{
+            const ax=adjXP(enc.monsters||[]);
+            const df=getDiff(ax,activeParty);
+            const sc={"Voorbereid":"#4a9eff","Actief":"#f39c12","Voltooid":"#2ecc71","Overgeslagen":"#5a5a5a"}[enc.status]||"#888";
+            return <div key={enc.id} onClick={()=>setActiveEncId(enc.id)} style={{padding:"8px 10px",borderRadius:6,marginBottom:4,cursor:"pointer",background:enc.id===activeEncId?"rgba(200,149,42,0.08)":"transparent",border:`1px solid ${enc.id===activeEncId?C.goldDim:C.border}`}}>
+              <div style={{...cinzel,fontSize:11,color:enc.id===activeEncId?C.gold:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{enc.name}</div>
+              <div style={{display:"flex",gap:5,marginTop:3,alignItems:"center",flexWrap:"wrap"}}>
+                <span style={{fontSize:9,padding:"1px 5px",borderRadius:3,background:`${sc}18`,border:`1px solid ${sc}55`,color:sc}}>{enc.status}</span>
+                {df&&<span style={{fontSize:9,padding:"1px 5px",borderRadius:3,background:`${df.color}18`,border:`1px solid ${df.color}55`,color:df.color}}>{df.label}</span>}
+                {(enc.monsters||[]).length>0&&<span style={{fontSize:10,color:C.dim}}>{fmtXP(ax)} XP</span>}
               </div>
-            );
+              <div style={{display:"flex",gap:3,marginTop:4}}>
+                <button onClick={e=>{e.stopPropagation();dupEnc(enc.id);}} style={btn("",{fontSize:9,padding:"1px 5px"})}>⎘</button>
+                <button onClick={e=>{e.stopPropagation();delEnc(enc.id);}} style={btn("red",{fontSize:9,padding:"1px 5px"})}>✕</button>
+              </div>
+            </div>;
           })}
-          <div style={{marginTop:8}}>
-            <MonsterSearch onAdd={addMonster}/>
+        </div>
+      </div>
+      {/* Col 3: Encounter detail */}
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",borderRight:`1px solid ${C.border}`}}>
+        {!activeEnc?<Empty icon="⚔️" text="Selecteer een encounter" sub="Of maak een nieuwe aan"/>:<>
+          <div style={{padding:"10px 14px",borderBottom:`1px solid ${C.border}`,background:"linear-gradient(90deg,#1a1208,#111310)",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+            <input style={{...inp(),fontFamily:"'Cinzel',serif",fontSize:15,color:C.gold,background:"transparent",border:"none",padding:"2px 0",flex:1}} value={activeEnc.name} onChange={e=>updEnc({...activeEnc,name:e.target.value})} placeholder="Encounter naam..."/>
+            <select style={sel({width:"auto",fontSize:11})} value={activeEnc.status||"Voorbereid"} onChange={e=>updEnc({...activeEnc,status:e.target.value})}>
+              {["Voorbereid","Actief","Voltooid","Overgeslagen"].map(s=><option key={s}>{s}</option>)}
+            </select>
+            <button style={btn("green",{fontSize:11})} onClick={()=>sendToTracker(activeEnc)}>▶ Naar Tracker</button>
           </div>
-          {/* Manual add */}
-          <div style={{marginTop:6}}>
-            <ManualMonsterAdd onAdd={addMonster}/>
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div>
-          <label style={EB.lbl}>GM Notities</label>
-          <textarea style={EB.textarea} value={encounter.notes||""} onChange={e=>updateField("notes",e.target.value)} placeholder="Locatie, triggers, tactiek, rewards..."/>
-        </div>
-
-        {/* Loot */}
-        <div style={{marginTop:10}}>
-          <label style={EB.lbl}>Loot / Rewards</label>
-          <textarea style={{...EB.textarea,minHeight:44}} value={encounter.loot||""} onChange={e=>updateField("loot",e.target.value)} placeholder="Gold, items, XP reward..."/>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function ManualMonsterAdd({ onAdd }) {
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState("");
-  const [cr, setCr] = useState("1");
-  const CRS = ["1/8","1/6","1/4","1/3","1/2","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20"];
-  if(!open) return (
-    <button style={{...EB.btn(""),width:"100%",marginTop:4,fontSize:11}} onClick={()=>setOpen(true)}>+ Handmatig toevoegen</button>
-  );
-  return (
-    <div style={{display:"flex",gap:6,marginTop:4,alignItems:"center"}}>
-      <input style={{...EB.inp,flex:1}} placeholder="Naam..." value={name} onChange={e=>setName(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&name.trim()){onAdd({name:name.trim(),cr,hp:0,ac:0,init:0,con:10});setName("");setOpen(false);}}}/>
-      <select style={{...EB.sel,width:70}} value={cr} onChange={e=>setCr(e.target.value)}>
-        {CRS.map(c=><option key={c} value={c}>CR {c}</option>)}
-      </select>
-      <button style={EB.btn("gold")} onClick={()=>{if(name.trim()){onAdd({name:name.trim(),cr,hp:0,ac:0,init:0,con:10});setName("");setOpen(false);}}}>+</button>
-      <button style={EB.btn("")} onClick={()=>{setOpen(false);setName("");}}>✕</button>
-    </div>
-  );
-}
-
-// ═══════════════ SESSION LIST ═══════════════
-function SessionList({ sessions, activeSessionId, onSelect, onCreate, onDelete }) {
-  return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <div style={{...EB.panelHead}}>
-        <span style={EB.panelTitle}>Sessies</span>
-        <button style={{...EB.btn("gold"),marginLeft:"auto",padding:"4px 10px",fontSize:10}} onClick={onCreate}>+ Nieuw</button>
-      </div>
-      <div style={{flex:1,overflowY:"auto",padding:"8px"}}>
-        {sessions.length===0&&<div style={{textAlign:"center",color:dimmed,fontSize:12,padding:"30px 10px"}}>Geen sessies<br/>Maak een nieuwe aan</div>}
-        {sessions.map(s=>(
-          <div key={s.id} style={{...EB.card,...(s.id===activeSessionId?EB.cardActive:{})}}
-            onClick={()=>onSelect(s.id)}>
-            <div style={EB.cardHead}>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:s.id===activeSessionId?gold:textC,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
-                <div style={{fontSize:10,color:dimmed,marginTop:2}}>{s.date||"Geen datum"} · {(s.encounters||[]).length} encounters</div>
-              </div>
-              <button style={{...EB.btn("red"),padding:"2px 6px",fontSize:10}} onClick={e=>{e.stopPropagation();onDelete(s.id);}}>✕</button>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════ ENCOUNTER LIST ═══════════════
-function EncounterList({ session, activeEncounterId, onSelect, onCreate, onDelete, onDuplicate, party }) {
-  if(!session) return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <div style={EB.panelHead}><span style={EB.panelTitle}>Encounters</span></div>
-      <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:dimmed,fontSize:12}}>Selecteer een sessie</div>
-    </div>
-  );
-
-  const totalXP = (session.encounters||[]).reduce((s,e)=>{
-    const raw=calcEncounterXP(e.monsters||[]);
-    return s+applyMultiplier(raw,getMonsterCount(e.monsters||[]));
-  },0);
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <div style={EB.panelHead}>
-        <div style={{flex:1}}>
-          <div style={EB.panelTitle}>{session.name}</div>
-          <div style={{fontSize:10,color:dimmed,marginTop:1}}>Totaal ~{fmtXP(totalXP)} XP · {(session.encounters||[]).length} encounters</div>
-        </div>
-        <button style={{...EB.btn("gold"),padding:"4px 10px",fontSize:10}} onClick={onCreate}>+ Nieuw</button>
-      </div>
-      <div style={{flex:1,overflowY:"auto",padding:"8px"}}>
-        {(session.encounters||[]).length===0&&(
-          <div style={{textAlign:"center",color:dimmed,fontSize:12,padding:"30px 10px"}}>Geen encounters<br/>Maak een nieuwe aan</div>
-        )}
-        {(session.encounters||[]).map(enc=>{
-          const raw=calcEncounterXP(enc.monsters||[]);
-          const adj=applyMultiplier(raw,getMonsterCount(enc.monsters||[]));
-          const diff=getDifficulty(adj,party);
-          const sc=STATUS_COLORS[enc.status]||"#5a5a5a";
-          return (
-            <div key={enc.id} style={{...EB.card,...(enc.id===activeEncounterId?EB.cardActive:{})}}
-              onClick={()=>onSelect(enc.id)}>
-              <div style={{...EB.cardHead,gap:6}}>
-                <div style={{flex:1,minWidth:0}}>
-                  <div style={{fontFamily:"'Cinzel',serif",fontSize:12,color:enc.id===activeEncounterId?gold:textC,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{enc.name||"Naamloze encounter"}</div>
-                  <div style={{display:"flex",gap:6,marginTop:3,alignItems:"center",flexWrap:"wrap"}}>
-                    <span style={{...EB.diffBadge(sc),fontSize:9}}>{enc.status||"Voorbereid"}</span>
-                    {diff&&<span style={{...EB.diffBadge(diff.color),fontSize:9}}>{diff.label}</span>}
-                    {(enc.monsters||[]).length>0&&<span style={{fontSize:10,color:dimmed}}>{getMonsterCount(enc.monsters)} monsters · {fmtXP(adj)} XP</span>}
+          <div style={{flex:1,overflowY:"auto",padding:"14px 16px"}}>
+            {/* XP summary */}
+            {activeParty&&(()=>{
+              const raw=calcRawXP(activeEnc.monsters||[]);
+              const ax=adjXP(activeEnc.monsters||[]);
+              const df=getDiff(ax,activeParty);
+              const thresh=getThresholds(activeParty);
+              const barMax=thresh?thresh[3]*1.2:Math.max(ax*2,1);
+              return <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"12px 14px",marginBottom:14}}>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:10,color:C.muted,textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:2}}>Moeilijkheid</div>
+                    <div style={{display:"flex",alignItems:"baseline",gap:8}}>
+                      <span style={{...cinzel,fontSize:22,color:df?.color||C.dim}}>{df?.label||"—"}</span>
+                      {df&&<span style={{fontSize:12,color:C.muted}}>voor {activeParty.members.length}p (gem. lvl {partyAvgLevel(activeParty)})</span>}
+                    </div>
+                  </div>
+                  <div style={{textAlign:"right"}}>
+                    <div style={{fontSize:10,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em"}}>Gecorrigeerde XP</div>
+                    <div style={{...cinzel,fontSize:20,color:C.gold}}>{fmtXP(ax)}</div>
+                    <div style={{fontSize:10,color:C.dim}}>Basis: {fmtXP(raw)} × {raw>0?(ax/raw).toFixed(1):"—"}</div>
                   </div>
                 </div>
-                <div style={{display:"flex",gap:3}}>
-                  <button style={{...EB.btn(""),padding:"2px 5px",fontSize:10}} title="Dupliceer" onClick={e=>{e.stopPropagation();onDuplicate(enc.id);}}>⎘</button>
-                  <button style={{...EB.btn("red"),padding:"2px 6px",fontSize:10}} onClick={e=>{e.stopPropagation();onDelete(enc.id);}}>✕</button>
+                <div style={{height:8,background:"#1a1a1a",borderRadius:4,position:"relative",overflow:"visible"}}>
+                  {thresh&&thresh.map((t,i)=><div key={i} style={{position:"absolute",left:`${Math.min(100,(t/barMax)*100)}%`,top:-2,height:12,width:1,background:`${DIFF_COLORS[i]}88`,zIndex:2}}/>)}
+                  <div style={{height:"100%",borderRadius:4,background:df?.color||"#3a3a3a",width:`${Math.min(100,(ax/barMax)*100)}%`,transition:"width 0.4s",minWidth:ax>0?4:0}}/>
                 </div>
+                {thresh&&<div style={{display:"flex",gap:10,marginTop:6,flexWrap:"wrap"}}>
+                  {DIFF_LABELS.map((l,i)=><div key={l} style={{fontSize:10,color:DIFF_COLORS[i]}}>{l}: {fmtXP(thresh[i])}</div>)}
+                </div>}
+              </div>;
+            })()}
+            {/* Monster list */}
+            <div style={{...cinzel,fontSize:11,color:C.gold,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:8}}>Monsters</div>
+            {(activeEnc.monsters||[]).length===0&&<div style={{textAlign:"center",padding:"16px",color:C.dim,fontSize:12,border:`1px dashed ${C.border}`,borderRadius:6,marginBottom:8}}>Geen monsters — voeg toe via zoekbalk</div>}
+            {(activeEnc.monsters||[]).map(m=><div key={m.id} className="fi" style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,marginBottom:5}}>
+              <span style={{fontSize:10,...cinzel,padding:"2px 6px",borderRadius:3,background:"#1a1208",border:`1px solid ${C.border}`,color:C.gold,minWidth:28,textAlign:"center"}}>{m.cr}</span>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{...cinzel,fontSize:12,color:C.text}}>{m.name}</div>
+                <div style={{fontSize:10,color:C.dim}}>{fmtXP(CR_XP[m.cr]||0)} XP elk · AC {m.ac||"?"} · HP {m.hp||"?"}</div>
               </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════ PARTY PANEL ═══════════════
-function PartyPanel({ parties, activePartyId, onSelect, onCreate, onChange, onDelete }) {
-  const [editId, setEditId] = useState(null);
-  const activeParty = parties.find(p=>p.id===activePartyId);
-
-  function addMember(partyId) {
-    onChange(partyId, p=>({...p,members:[...(p.members||[]),{id:uid(),name:"",level:1,cls:"Fighter"}]}));
-  }
-  function removeMember(partyId, memberId) {
-    onChange(partyId, p=>({...p,members:p.members.filter(m=>m.id!==memberId)}));
-  }
-  function updateMember(partyId, memberId, field, val) {
-    onChange(partyId, p=>({...p,members:p.members.map(m=>m.id===memberId?{...m,[field]:val}:m)}));
-  }
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      <div style={EB.panelHead}>
-        <span style={EB.panelTitle}>Party</span>
-        <button style={{...EB.btn("gold"),marginLeft:"auto",padding:"4px 10px",fontSize:10}} onClick={onCreate}>+ Nieuw</button>
-      </div>
-      <div style={{padding:"8px",borderBottom:`1px solid ${border}`,flexShrink:0}}>
-        <select style={EB.sel} value={activePartyId||""} onChange={e=>onSelect(e.target.value)}>
-          <option value="">— Selecteer party —</option>
-          {parties.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
-      </div>
-      {activeParty&&(
-        <div style={{flex:1,overflowY:"auto",padding:"10px"}}>
-          {/* Party name */}
-          <div style={{marginBottom:10}}>
-            <label style={EB.lbl}>Party naam</label>
-            <input style={EB.inp} value={activeParty.name} onChange={e=>onChange(activeParty.id,p=>({...p,name:e.target.value}))}/>
+              <div style={{display:"flex",alignItems:"center",gap:4}}>
+                <button style={btn("",{padding:"2px 7px",fontSize:13})} onClick={()=>{const ms=(activeEnc.monsters||[]).map(x=>x.id===m.id?{...x,count:Math.max(1,(x.count||1)-1)}:x);updEnc({...activeEnc,monsters:ms});}}>−</button>
+                <span style={{...cinzel,fontSize:14,color:C.text,minWidth:20,textAlign:"center"}}>{m.count||1}</span>
+                <button style={btn("",{padding:"2px 7px",fontSize:13})} onClick={()=>{const ms=(activeEnc.monsters||[]).map(x=>x.id===m.id?{...x,count:(x.count||1)+1}:x);updEnc({...activeEnc,monsters:ms});}}>+</button>
+              </div>
+              <div style={{fontSize:11,color:C.muted,minWidth:40,textAlign:"right"}}>{fmtXP((CR_XP[m.cr]||0)*(m.count||1))}</div>
+              <button style={btn("red",{padding:"2px 6px",fontSize:11})} onClick={()=>updEnc({...activeEnc,monsters:(activeEnc.monsters||[]).filter(x=>x.id!==m.id)})}>✕</button>
+            </div>)}
+            {/* Add monster */}
+            <MonsterSearch onAdd={m=>{const ex=(activeEnc.monsters||[]).findIndex(x=>x.name===m.name&&x.cr===m.cr);if(ex>=0){const ms=[...(activeEnc.monsters||[])];ms[ex]={...ms[ex],count:(ms[ex].count||1)+1};updEnc({...activeEnc,monsters:ms});}else{updEnc({...activeEnc,monsters:[...(activeEnc.monsters||[]),{id:uid(),name:m.name,cr:m.cr,count:1,hp:m.hp,ac:m.ac,init:m.init,con:m.con}]});}}}/>
+            {/* Manual add */}
+            {(()=>{const [open,setOpen]=useState(false);const [mn,setMn]=useState("");const [mcr,setMcr]=useState("1");
+            return open?<div style={{display:"flex",gap:6,marginTop:6,alignItems:"center"}}>
+              <input style={inp({flex:1,boxSizing:"border-box"})} placeholder="Naam..." value={mn} onChange={e=>setMn(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&mn.trim()){updEnc({...activeEnc,monsters:[...(activeEnc.monsters||[]),{id:uid(),name:mn.trim(),cr:mcr,count:1,hp:0,ac:0,init:0,con:10}]});setMn("");setOpen(false);}}}/>
+              <select style={sel({width:70})} value={mcr} onChange={e=>setMcr(e.target.value)}>{CR_LIST.map(c=><option key={c} value={c}>CR {c}</option>)}</select>
+              <button style={btn("gold")} onClick={()=>{if(mn.trim()){updEnc({...activeEnc,monsters:[...(activeEnc.monsters||[]),{id:uid(),name:mn.trim(),cr:mcr,count:1,hp:0,ac:0,init:0,con:10}]});setMn("");setOpen(false);}}}>+</button>
+              <button style={btn()} onClick={()=>{setOpen(false);setMn("");}}>✕</button>
+            </div>:<button style={{...btn(),width:"100%",marginTop:6,fontSize:11}} onClick={()=>setOpen(true)}>+ Handmatig toevoegen</button>;})()}
+            <Divider/>
+            <div style={{marginBottom:10}}><label style={lbl}>GM Notities</label><textarea style={{...inp(),minHeight:70,resize:"vertical",lineHeight:1.5}} value={activeEnc.notes||""} onChange={e=>updEnc({...activeEnc,notes:e.target.value})} placeholder="Locatie, triggers, tactiek..."/></div>
+            <div><label style={lbl}>Loot / Rewards</label><textarea style={{...inp(),minHeight:44,resize:"vertical",lineHeight:1.5}} value={activeEnc.loot||""} onChange={e=>updEnc({...activeEnc,loot:e.target.value})} placeholder="Gold, items, XP..."/></div>
           </div>
-          {/* Members */}
-          <div style={{fontSize:11,color:gold,letterSpacing:"0.12em",textTransform:"uppercase",fontFamily:"'Cinzel',serif",marginBottom:6}}>
-            Leden ({(activeParty.members||[]).length})
+        </>}
+      </div>
+      {/* Col 4: Party + session */}
+      <div style={{width:260,flexShrink:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        <div style={{display:"flex",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
+          {[["party","👥 Party"],["session","📅 Sessie"]].map(([k,l])=><button key={k} style={{flex:1,padding:"8px",border:"none",borderBottom:`2px solid ${rightTab===k?C.gold:"transparent"}`,background:rightTab===k?"rgba(200,149,42,0.05)":"transparent",color:rightTab===k?C.gold:C.muted,cursor:"pointer",...cinzel,fontSize:11}} onClick={()=>setRightTab(k)}>{l}</button>)}
+        </div>
+        {rightTab==="party"&&<div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
+          <div style={{padding:"8px",borderBottom:`1px solid ${C.border}`,flexShrink:0,display:"flex",gap:6}}>
+            <select style={sel({flex:1})} value={activePartyId||""} onChange={e=>setActivePartyId(e.target.value)}>
+              <option value="">— Selecteer party —</option>
+              {parties.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
+            </select>
+            <button style={btn("gold",{padding:"6px 10px",fontSize:11})} onClick={createParty}>+</button>
           </div>
-          {(activeParty.members||[]).map(m=>(
-            <div key={m.id} style={{display:"grid",gridTemplateColumns:"1fr 36px 1fr auto",gap:5,marginBottom:6,alignItems:"center"}}>
-              <input style={{...EB.inp,fontSize:12}} placeholder="Naam" value={m.name} onChange={e=>updateMember(activeParty.id,m.id,"name",e.target.value)}/>
-              <input style={{...EB.inp,fontSize:12,textAlign:"center",padding:"6px 4px"}} type="number" min="1" max="20" value={m.level} onChange={e=>updateMember(activeParty.id,m.id,"level",parseInt(e.target.value)||1)}/>
-              <select style={{...EB.sel,fontSize:11}} value={m.cls} onChange={e=>updateMember(activeParty.id,m.id,"cls",e.target.value)}>
+          {activeParty&&<div style={{flex:1,overflowY:"auto",padding:"10px"}}>
+            <div style={{marginBottom:8}}><label style={lbl}>Party naam</label><input style={inp()} value={activeParty.name} onChange={e=>updParty(activeParty.id,p=>({...p,name:e.target.value}))}/></div>
+            <div style={{...cinzel,fontSize:11,color:C.gold,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:6}}>Leden</div>
+            {(activeParty.members||[]).map(m=><div key={m.id} style={{display:"grid",gridTemplateColumns:"1fr 36px 1fr auto",gap:4,marginBottom:5,alignItems:"center"}}>
+              <input style={inp({fontSize:12})} placeholder="Naam" value={m.name} onChange={e=>updParty(activeParty.id,p=>({...p,members:p.members.map(x=>x.id===m.id?{...x,name:e.target.value}:x)}))}/>
+              <input style={inp({fontSize:12,textAlign:"center",padding:"6px 4px"})} type="number" min="1" max="20" value={m.level} onChange={e=>updParty(activeParty.id,p=>({...p,members:p.members.map(x=>x.id===m.id?{...x,level:parseInt(e.target.value)||1}:x)}))}/>
+              <select style={sel({fontSize:11})} value={m.cls} onChange={e=>updParty(activeParty.id,p=>({...p,members:p.members.map(x=>x.id===m.id?{...x,cls:e.target.value}:x)}))}>
                 {PF1_CLASSES.map(c=><option key={c}>{c}</option>)}
               </select>
-              <button style={{...EB.btn("red"),padding:"2px 6px",fontSize:11}} onClick={()=>removeMember(activeParty.id,m.id)}>✕</button>
-            </div>
-          ))}
-          <button style={{...EB.btn("green"),width:"100%",marginTop:4}} onClick={()=>addMember(activeParty.id)}>+ Lid toevoegen</button>
-          {/* Summary */}
-          {(activeParty.members||[]).length>0&&(
-            <div style={{marginTop:10,padding:"8px 10px",background:"#0d0f0e",border:`1px solid ${border}`,borderRadius:6,fontSize:11,color:muted}}>
-              {activeParty.members.length} spelers ·{" "}
-              Gem. level {(activeParty.members.reduce((s,m)=>s+(m.level||1),0)/activeParty.members.length).toFixed(1)}
-            </div>
-          )}
-          <button style={{...EB.btn("red"),width:"100%",marginTop:8,fontSize:10}} onClick={()=>onDelete(activeParty.id)}>Party verwijderen</button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ═══════════════ ROOT APP ═══════════════
-const EB_STORAGE_KEY = "pf1e-encounter-builder";
-
-function loadEncState() {
-  try {
-    const s = localStorage.getItem(EB_STORAGE_KEY);
-    if(s) return JSON.parse(s);
-  } catch{}
-  return null;
-}
-
-function EncounterBuilder({ onShowToast }) {
-  const [sessions, setSessions] = useState([]);
-  const [parties, setParties] = useState([]);
-  const [activeSessionId, setActiveSessionId] = useState(null);
-  const [activeEncounterId, setActiveEncounterId] = useState(null);
-  const [activePartyId, setActivePartyId] = useState(null);
-  const [rightTab, setRightTab] = useState("party");
-
-  // Load
-  useEffect(()=>{
-    const s=loadEncState();
-    if(s){
-      setSessions(s.sessions||[]);
-      setParties(s.parties||[]);
-      setActiveSessionId(s.activeSessionId||null);
-      setActiveEncounterId(s.activeEncounterId||null);
-      setActivePartyId(s.activePartyId||null);
-    }
-  },[]);
-
-  // Save
-  useEffect(()=>{
-    try{ localStorage.setItem(EB_STORAGE_KEY,JSON.stringify({sessions,parties,activeSessionId,activeEncounterId,activePartyId})); }catch{}
-  },[sessions,parties,activeSessionId,activeEncounterId,activePartyId]);
-
-  function showToast(msg,color="#2ecc71") { if(onShowToast) onShowToast(msg,color); }
-
-  // Sessions
-  function createSession() {
-    const s={id:uid(),name:`Sessie ${sessions.length+1}`,date:new Date().toLocaleDateString("nl"),encounters:[]};
-    setSessions(p=>[s,...p]);
-    setActiveSessionId(s.id);
-    setActiveEncounterId(null);
-  }
-  function deleteSession(id) {
-    if(!window.confirm("Sessie verwijderen?")) return;
-    setSessions(p=>p.filter(s=>s.id!==id));
-    if(activeSessionId===id){setActiveSessionId(null);setActiveEncounterId(null);}
-  }
-  function updateSession(id,fn) { setSessions(p=>p.map(s=>s.id===id?fn(s):s)); }
-
-  // Encounters
-  const activeSession = sessions.find(s=>s.id===activeSessionId);
-  function createEncounter() {
-    if(!activeSessionId) return;
-    const e={id:uid(),name:`Encounter ${((activeSession?.encounters||[]).length+1)}`,status:"Voorbereid",monsters:[],notes:"",loot:""};
-    updateSession(activeSessionId,s=>({...s,encounters:[...(s.encounters||[]),e]}));
-    setActiveEncounterId(e.id);
-  }
-  function deleteEncounter(id) {
-    updateSession(activeSessionId,s=>({...s,encounters:s.encounters.filter(e=>e.id!==id)}));
-    if(activeEncounterId===id) setActiveEncounterId(null);
-  }
-  function duplicateEncounter(id) {
-    const enc=activeSession?.encounters?.find(e=>e.id===id);
-    if(!enc) return;
-    const copy={...enc,id:uid(),name:enc.name+" (kopie)",status:"Voorbereid"};
-    updateSession(activeSessionId,s=>({...s,encounters:[...(s.encounters||[]),copy]}));
-    setActiveEncounterId(copy.id);
-    showToast("Encounter gedupliceerd");
-  }
-  function updateEncounter(updated) {
-    updateSession(activeSessionId,s=>({...s,encounters:s.encounters.map(e=>e.id===updated.id?updated:e)}));
-  }
-
-  const activeEncounter = activeSession?.encounters?.find(e=>e.id===activeEncounterId);
-  const activeParty = parties.find(p=>p.id===activePartyId);
-
-  // Parties
-  function createParty() {
-    const p={id:uid(),name:`Party ${parties.length+1}`,members:[]};
-    setParties(prev=>[...prev,p]);
-    setActivePartyId(p.id);
-  }
-  function deleteParty(id) {
-    if(!window.confirm("Party verwijderen?")) return;
-    setParties(p=>p.filter(x=>x.id!==id));
-    if(activePartyId===id) setActivePartyId(null);
-  }
-  function updateParty(id,fn) { setParties(p=>p.map(x=>x.id===id?fn(x):x)); }
-
-  function sendToTracker(enc) {
-    // Store in localStorage for initiative tracker to pick up
-    const combatants = (enc.monsters||[]).flatMap(m=>
-      Array.from({length:m.count||1},(_,i)=>({
-        id:uid(),
-        name:m.count>1?`${m.name} ${i+1}`:m.name,
-        type:"Enemy",
-        initBonus:m.init||0,
-        initiative:0,
-        hpMax:m.hp||0,
-        hpCurrent:m.hp||0,
-        ac:m.ac||10,
-        conScore:m.con||10,
-        conditions:[],
-      }))
-    );
-    // Add party members if available
-    if(activeParty) {
-      activeParty.members.forEach(m=>{
-        combatants.push({id:uid(),name:m.name||m.cls,type:"PC",initBonus:0,initiative:0,hpMax:0,hpCurrent:0,ac:10,conScore:10,conditions:[]});
-      });
-    }
-    localStorage.setItem("pf1e-gm-tracker-import",JSON.stringify({combatants,timestamp:Date.now()}));
-    showToast(`${combatants.length} deelnemers klaar voor Initiative Tracker ✓`);
-  }
-
-  // Export/import
-  function exportData() {
-    const data=JSON.stringify({sessions,parties},null,2);
-    const blob=new Blob([data],{type:"application/json"});
-    const url=URL.createObjectURL(blob);
-    const a=document.createElement("a");
-    a.href=url;a.download="pf1e-encounters.json";a.click();
-    URL.revokeObjectURL(url);
-  }
-  function importData(e) {
-    const file=e.target.files[0];if(!file)return;
-    const reader=new FileReader();
-    reader.onload=ev=>{
-      try{
-        const d=JSON.parse(ev.target.result);
-        if(d.sessions) setSessions(prev=>[...prev,...d.sessions]);
-        if(d.parties) setParties(prev=>[...prev,...d.parties]);
-        showToast("Data geïmporteerd ✓");
-      }catch{showToast("Fout bij importeren","#e74c3c");}
-    };
-    reader.readAsText(file);
-  }
-
-  return (
-    <div style={EB.app}>
-              </div>
-      )}
-
-      {/* Top bar */}
-      <div style={EB.topBar}>
-        <div>
-          <div style={EB.title}>🗺️ ENCOUNTER BUILDER</div>
-          <div style={EB.sub}>Pathfinder 1e · Sessie & Encounter Planning</div>
-        </div>
-        <div style={{marginLeft:"auto",display:"flex",gap:8,alignItems:"center"}}>
-          <button style={{...EB.btn("blue"),fontSize:11}} onClick={exportData}>⬇ Export JSON</button>
-          <label style={{...EB.btn(""),fontSize:11,cursor:"pointer"}}>
-            ⬆ Import JSON
-            <input type="file" accept=".json" style={{display:"none"}} onChange={importData}/>
-          </label>
-        </div>
-      </div>
-
-      {/* Body — 4 columns */}
-      <div style={EB.body}>
-        {/* Col 1: Sessions */}
-        <div style={{...EB.leftCol,width:200}}>
-          <SessionList sessions={sessions} activeSessionId={activeSessionId}
-            onSelect={id=>{setActiveSessionId(id);setActiveEncounterId(null);}}
-            onCreate={createSession} onDelete={deleteSession}/>
-        </div>
-
-        {/* Col 2: Encounters in session */}
-        <div style={{...EB.leftCol,width:230}}>
-          <EncounterList session={activeSession} activeEncounterId={activeEncounterId}
-            onSelect={setActiveEncounterId} onCreate={createEncounter}
-            onDelete={deleteEncounter} onDuplicate={duplicateEncounter} party={activeParty}/>
-        </div>
-
-        {/* Col 3: Encounter detail */}
-        <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",borderRight:`1px solid ${border}`}}>
-          <EncounterDetail encounter={activeEncounter} party={activeParty}
-            onChange={updateEncounter} onSendToTracker={sendToTracker}/>
-        </div>
-
-        {/* Col 4: Party + session meta */}
-        <div style={{width:280,flexShrink:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-          {/* Tabs */}
-          <div style={{display:"flex",borderBottom:`1px solid ${border}`,flexShrink:0}}>
-            {[["party","👥 Party"],["session","📅 Sessie"]].map(([k,lbl])=>(
-              <button key={k} style={{...EB.btn(""),flex:1,borderRadius:0,border:"none",borderBottom:`2px solid ${rightTab===k?gold:"transparent"}`,color:rightTab===k?gold:muted,background:rightTab===k?"rgba(200,149,42,0.05)":"transparent",padding:"8px",fontSize:11}}
-                onClick={()=>setRightTab(k)}>{lbl}</button>
-            ))}
-          </div>
-          {rightTab==="party"&&(
-            <PartyPanel parties={parties} activePartyId={activePartyId}
-              onSelect={setActivePartyId} onCreate={createParty}
-              onChange={updateParty} onDelete={deleteParty}/>
-          )}
-          {rightTab==="session"&&activeSession&&(
-            <div style={{flex:1,overflowY:"auto",padding:"12px"}}>
-              <div style={{marginBottom:10}}>
-                <label style={EB.lbl}>Sessie naam</label>
-                <input style={EB.inp} value={activeSession.name} onChange={e=>updateSession(activeSessionId,s=>({...s,name:e.target.value}))}/>
-              </div>
-              <div style={{marginBottom:10}}>
-                <label style={EB.lbl}>Datum</label>
-                <input style={EB.inp} type="date" value={activeSession.date||""} onChange={e=>updateSession(activeSessionId,s=>({...s,date:e.target.value}))}/>
-              </div>
-              <div style={{marginBottom:10}}>
-                <label style={EB.lbl}>Sessie notities</label>
-                <textarea style={{...EB.textarea,minHeight:100}} value={activeSession.notes||""} onChange={e=>updateSession(activeSessionId,s=>({...s,notes:e.target.value}))} placeholder="Verhaallijnen, player hooks, vorige sessie recap..."/>
-              </div>
-              {/* Session XP summary */}
-              <div style={{background:"#0d0f0e",border:`1px solid ${border}`,borderRadius:6,padding:"10px 12px",fontSize:12}}>
-                <div style={{fontFamily:"'Cinzel',serif",fontSize:11,color:gold,letterSpacing:"0.1em",marginBottom:8}}>SESSIE OVERZICHT</div>
-                {(activeSession.encounters||[]).map(enc=>{
-                  const raw=calcEncounterXP(enc.monsters||[]);
-                  const adj=applyMultiplier(raw,getMonsterCount(enc.monsters||[]));
-                  const diff=getDifficulty(adj,activeParty);
-                  const sc=STATUS_COLORS[enc.status]||"#5a5a5a";
-                  return(
-                    <div key={enc.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",borderBottom:`1px solid ${border}`}}>
-                      <div style={{display:"flex",alignItems:"center",gap:6}}>
-                        <span style={{width:6,height:6,borderRadius:"50%",background:sc,display:"inline-block"}}/>
-                        <span style={{fontSize:11,color:textC,maxWidth:120,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{enc.name}</span>
-                      </div>
-                      <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                        {diff&&<span style={{fontSize:9,color:diff.color}}>{diff.label}</span>}
-                        <span style={{fontSize:11,color:muted}}>{fmtXP(adj)}</span>
-                      </div>
-                    </div>
-                  );
-                })}
-                <div style={{display:"flex",justifyContent:"space-between",marginTop:8,fontFamily:"'Cinzel',serif",fontSize:12}}>
-                  <span style={{color:muted}}>Totaal XP</span>
-                  <span style={{color:gold}}>{fmtXP((activeSession.encounters||[]).reduce((s,e)=>{const r=calcEncounterXP(e.monsters||[]);return s+applyMultiplier(r,getMonsterCount(e.monsters||[]));},0))}</span>
+              <button style={btn("red",{padding:"2px 6px",fontSize:11})} onClick={()=>updParty(activeParty.id,p=>({...p,members:p.members.filter(x=>x.id!==m.id)}))}>✕</button>
+            </div>)}
+            <button style={{...btn("green"),width:"100%",marginTop:4,fontSize:11}} onClick={()=>updParty(activeParty.id,p=>({...p,members:[...(p.members||[]),{id:uid(),name:"",level:1,cls:"Fighter"}]}))}>+ Lid toevoegen</button>
+            {(activeParty.members||[]).length>0&&<div style={{marginTop:8,padding:"8px 10px",background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,fontSize:11,color:C.muted}}>
+              {activeParty.members.length} spelers · Gem. level {(activeParty.members.reduce((s,m)=>s+(m.level||1),0)/activeParty.members.length).toFixed(1)}
+            </div>}
+            <button style={{...btn("red"),width:"100%",marginTop:8,fontSize:10}} onClick={()=>{if(window.confirm("Party verwijderen?"))setParties(p=>p.filter(x=>x.id!==activeParty.id));setActivePartyId(null);}}>Party verwijderen</button>
+          </div>}
+        </div>}
+        {rightTab==="session"&&<div style={{flex:1,overflowY:"auto",padding:"12px"}}>
+          {!activeSess?<div style={{color:C.dim,fontSize:12,textAlign:"center",marginTop:20}}>Selecteer een sessie</div>:<>
+            <div style={{marginBottom:10}}><label style={lbl}>Sessie naam</label><input style={inp()} value={activeSess.name} onChange={e=>updSess(activeSessId,s=>({...s,name:e.target.value}))}/></div>
+            <div style={{marginBottom:10}}><label style={lbl}>Datum</label><input style={inp()} type="date" value={activeSess.date||""} onChange={e=>updSess(activeSessId,s=>({...s,date:e.target.value}))}/></div>
+            <div style={{marginBottom:10}}><label style={lbl}>Sessie notities</label><textarea style={{...inp(),minHeight:80,resize:"vertical",lineHeight:1.5}} value={activeSess.notes||""} onChange={e=>updSess(activeSessId,s=>({...s,notes:e.target.value}))} placeholder="Verhaallijnen, hooks, recap..."/></div>
+            <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"10px 12px",fontSize:12}}>
+              <div style={{...cinzel,fontSize:11,color:C.gold,letterSpacing:"0.1em",marginBottom:8}}>SESSIE OVERZICHT</div>
+              {(activeSess.encounters||[]).map(enc=>{const ax=adjXP(enc.monsters||[]);const df=getDiff(ax,activeParty);const sc={"Voorbereid":"#4a9eff","Actief":"#f39c12","Voltooid":"#2ecc71","Overgeslagen":"#5a5a5a"}[enc.status]||"#888";return<div key={enc.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",borderBottom:`1px solid ${C.border}`}}>
+                <div style={{display:"flex",alignItems:"center",gap:6}}>
+                  <span style={{width:6,height:6,borderRadius:"50%",background:sc,display:"inline-block"}}/>
+                  <span style={{fontSize:11,color:C.text,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{enc.name}</span>
                 </div>
-                {activeParty&&activeParty.members.length>0&&(
-                  <div style={{display:"flex",justifyContent:"space-between",marginTop:4,fontSize:11}}>
-                    <span style={{color:dimmed}}>Per speler</span>
-                    <span style={{color:muted}}>{fmtXP(Math.round((activeSession.encounters||[]).reduce((s,e)=>{const r=calcEncounterXP(e.monsters||[]);return s+applyMultiplier(r,getMonsterCount(e.monsters||[]));},0)/activeParty.members.length))}</span>
-                  </div>
-                )}
+                <div style={{display:"flex",gap:6,alignItems:"center"}}>
+                  {df&&<span style={{fontSize:9,color:df.color}}>{df.label}</span>}
+                  <span style={{fontSize:11,color:C.muted}}>{fmtXP(ax)}</span>
+                </div>
+              </div>;})}
+              <div style={{display:"flex",justifyContent:"space-between",marginTop:8,...cinzel,fontSize:12}}>
+                <span style={{color:C.muted}}>Totaal XP</span>
+                <span style={{color:C.gold}}>{fmtXP(sessXP)}</span>
               </div>
+              {activeParty&&activeParty.members.length>0&&<div style={{display:"flex",justifyContent:"space-between",marginTop:4,fontSize:11}}>
+                <span style={{color:C.dim}}>Per speler</span>
+                <span style={{color:C.muted}}>{fmtXP(Math.round(sessXP/activeParty.members.length))}</span>
+              </div>}
             </div>
-          )}
-          {rightTab==="session"&&!activeSession&&(
-            <div style={{flex:1,display:"flex",alignItems:"center",justifyContent:"center",color:dimmed,fontSize:12}}>Selecteer een sessie</div>
-          )}
-        </div>
+          </>}
+        </div>}
       </div>
     </div>
-  );
+  </div>;
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+// ═══════════════════════════════════════════════════════════════════════════════
+// MODULE 4 — NPC TRACKER
+// ═══════════════════════════════════════════════════════════════════════════════
+function NpcTracker(){
+  const SK="pf1e-npc-tracker";
+  const [npcs,setNpcs]=useState([]);
+  const [selId,setSelId]=useState(null);
+  const [search,setSearch]=useState("");
+  const [fRel,setFRel]=useState(""); const [fStat,setFStat]=useState(""); const [fLoc,setFLoc]=useState("");
+  const [sortBy,setSortBy]=useState("name");
+  const [viewMode,setViewMode]=useState("list");
+  const [tagInput,setTagInput]=useState("");
 
+  useEffect(()=>{try{const d=localStorage.getItem(SK);if(d)setNpcs(JSON.parse(d));}catch{}},[]);
+  useEffect(()=>{try{localStorage.setItem(SK,JSON.stringify(npcs));}catch{}},[npcs]);
 
+  function newNpc(){const n={id:uid(),name:"",race:"",role:"",location:"",status:"Levend",relation:"Onbekend",tags:[],gmNotes:"",partyKnows:"",cr:"",createdAt:Date.now()};setNpcs(p=>[n,...p]);setSelId(n.id);}
+  function updNpc(upd){setNpcs(p=>p.map(n=>n.id===upd.id?upd:n));}
+  function delNpc(id){setNpcs(p=>p.filter(n=>n.id!==id));if(selId===id)setSelId(null);}
+  function dupNpc(id){const src=npcs.find(n=>n.id===id);if(!src)return;const c={...src,id:uid(),name:src.name+" (kopie)",createdAt:Date.now()};setNpcs(p=>[c,...p]);setSelId(c.id);}
 
-// ═══════════════════════════════════════════════════════
-// NPC TRACKER
-// Per sessie — simpel, snel, bruikbaar mid-sessie
-// ═══════════════════════════════════════════════════════
+  const locations=[...new Set(npcs.map(n=>n.location).filter(Boolean))].sort();
+  const filtered=useMemo(()=>{const q=search.toLowerCase();return npcs.filter(n=>{
+    if(q&&!n.name.toLowerCase().includes(q)&&!n.role.toLowerCase().includes(q)&&!n.location.toLowerCase().includes(q)&&!n.tags.some(t=>t.includes(q)))return false;
+    if(fRel&&n.relation!==fRel)return false;
+    if(fStat&&n.status!==fStat)return false;
+    if(fLoc&&n.location!==fLoc)return false;
+    return true;
+  }).sort((a,b)=>{
+    if(sortBy==="name")return(a.name||"").localeCompare(b.name||"");
+    if(sortBy==="status")return a.status.localeCompare(b.status);
+    if(sortBy==="relation")return a.relation.localeCompare(b.relation);
+    if(sortBy==="location")return(a.location||"").localeCompare(b.location||"");
+    return b.createdAt-a.createdAt;
+  });},[npcs,search,fRel,fStat,fLoc,sortBy]);
 
-const NPC_STATUSES  = ["Levend","Dood","Gevlucht","Onbekend","Gevangen"];
-const NPC_RELATIONS = ["Vriend","Neutraal","Vijand","Onbekend","Wisselvallig"];
-const NPC_TAGS_PRESET = ["quest giver","informant","merchant","guard","noble","villain","ally","contact","witness","captive","recurring"];
+  const byLoc=useMemo(()=>{const m={};filtered.forEach(n=>{const l=n.location||"— Onbekend —";if(!m[l])m[l]=[];m[l].push(n);});return m;},[filtered]);
+  const sel=npcs.find(n=>n.id===selId)||null;
 
-const NPC_STATUS_COLORS  = {
-  "Levend":"#2ecc71","Dood":"#c0392b","Gevlucht":"#e67e22",
-  "Onbekend":"#7f8c8d","Gevangen":"#9b59b6"
-};
-const NPC_REL_COLORS = {
-  "Vriend":"#2ecc71","Neutraal":"#95a5a6","Vijand":"#e74c3c",
-  "Onbekend":"#7f8c8d","Wisselvallig":"#f39c12"
-};
+  function exportNpcs(){const blob=new Blob([JSON.stringify(npcs,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="pf1e-npcs.json";a.click();URL.revokeObjectURL(url);}
+  function importNpcs(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(Array.isArray(d))setNpcs(p=>[...p,...d]);}catch{}};r.readAsText(f);e.target.value="";}
 
-function npcUid() { return "n"+Math.random().toString(36).slice(2,9); }
-
-function emptyNpc() {
-  return {
-    id: npcUid(),
-    name: "",
-    race: "",
-    role: "",
-    location: "",
-    status: "Levend",
-    relation: "Onbekend",
-    tags: [],
-    gmNotes: "",
-    partyKnows: "",
-    cr: "",
-    createdAt: Date.now(),
-  };
-}
-
-// ── Tag pill ──────────────────────────────────────────
-function TagPill({ label, onRemove, color }) {
-  return (
-    <span style={{
-      display:"inline-flex",alignItems:"center",gap:3,
-      padding:"1px 7px",borderRadius:10,fontSize:10,
-      background: color ? `${color}18` : "#1e1a10",
-      border: `1px solid ${color || "#3a2a18"}`,
-      color: color || "#8a7050",
-      marginRight:3, marginBottom:3,
-    }}>
-      {label}
-      {onRemove && <span style={{cursor:"pointer",opacity:0.6,fontSize:11}} onClick={onRemove}>×</span>}
-    </span>
-  );
-}
-
-// ── NPC Card (list view) ──────────────────────────────
-function NpcCard({ npc, isSelected, onClick, onDelete }) {
-  const sc = NPC_STATUS_COLORS[npc.status]  || "#888";
-  const rc = NPC_REL_COLORS[npc.relation]   || "#888";
-  const isDead = npc.status === "Dood";
-
-  return (
-    <div onClick={onClick} style={{
-      padding:"9px 12px",
-      background: isSelected ? "rgba(200,149,42,0.08)" : "rgba(255,255,255,0.01)",
-      borderLeft: `3px solid ${isSelected ? gold : "transparent"}`,
-      borderBottom: `1px solid ${border}`,
-      cursor:"pointer",
-      transition:"all 0.12s",
-      opacity: isDead ? 0.55 : 1,
-    }}>
+  function NpcCard({n}){
+    const sc=NPC_STAT_C[n.status]||"#888"; const rc=NPC_REL_C[n.relation]||"#888";
+    const dead=n.status==="Dood";
+    return <div onClick={()=>setSelId(n.id)} style={{padding:"8px 12px",cursor:"pointer",borderLeft:`3px solid ${selId===n.id?C.gold:"transparent"}`,borderBottom:`1px solid ${C.border}`,background:selId===n.id?"rgba(200,149,42,0.08)":"transparent",opacity:dead?0.55:1}}>
       <div style={{display:"flex",alignItems:"flex-start",gap:6}}>
-        {/* Status dot */}
         <div style={{width:8,height:8,borderRadius:"50%",background:sc,flexShrink:0,marginTop:4}}/>
         <div style={{flex:1,minWidth:0}}>
           <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-            <span style={{fontFamily:"'Cinzel',serif",fontSize:12,color:isSelected?gold:text,
-              textDecoration:isDead?"line-through":"none",
-              overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:130}}>
-              {npc.name||<em style={{color:dimmed}}>Naamloze NPC</em>}
+            <span style={{...cinzel,fontSize:12,color:selId===n.id?C.gold:C.text,textDecoration:dead?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:130}}>
+              {n.name||<em style={{color:C.dim}}>Naamloze NPC</em>}
             </span>
-            <span style={{fontSize:9,padding:"1px 5px",borderRadius:3,
-              background:`${rc}18`,border:`1px solid ${rc}55`,color:rc}}>
-              {npc.relation}
-            </span>
+            <span style={{fontSize:9,padding:"1px 5px",borderRadius:3,background:`${rc}18`,border:`1px solid ${rc}55`,color:rc}}>{n.relation}</span>
           </div>
-          <div style={{fontSize:10,color:dimmed,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            {[npc.race, npc.role].filter(Boolean).join(" · ")}
-            {npc.location && <span style={{color:"#4a3a28"}}> @ {npc.location}</span>}
+          <div style={{fontSize:10,color:C.dim,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+            {[n.race,n.role].filter(Boolean).join(" · ")}
+            {n.location&&<span style={{color:"#4a3a28"}}> @ {n.location}</span>}
           </div>
-          {npc.tags.length > 0 && (
-            <div style={{marginTop:3}}>
-              {npc.tags.slice(0,3).map(t=>(
-                <TagPill key={t} label={t}/>
-              ))}
-              {npc.tags.length>3 && <span style={{fontSize:9,color:dimmed}}>+{npc.tags.length-3}</span>}
-            </div>
-          )}
+          {n.tags.length>0&&<div style={{marginTop:3}}>
+            {n.tags.slice(0,3).map(t=><span key={t} style={{display:"inline-block",padding:"1px 6px",borderRadius:10,fontSize:10,background:"#1e1a10",border:`1px solid ${C.border}`,color:"#8a7050",marginRight:3}}>{t}</span>)}
+            {n.tags.length>3&&<span style={{fontSize:9,color:C.dim}}>+{n.tags.length-3}</span>}
+          </div>}
         </div>
-        <button onClick={e=>{e.stopPropagation();onDelete(npc.id);}}
-          style={{background:"transparent",border:"none",color:"#4a2020",cursor:"pointer",fontSize:13,padding:"0 2px",flexShrink:0}}>✕</button>
+        <button onClick={e=>{e.stopPropagation();delNpc(n.id);}} style={{background:"transparent",border:"none",color:"#4a2020",cursor:"pointer",fontSize:13,padding:"0 2px",flexShrink:0}}>✕</button>
+      </div>
+    </div>;
+  }
+
+  return <div style={{height:"100%",display:"flex",overflow:"hidden"}}>
+    {/* Left list */}
+    <div style={{width:290,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${C.border}`,background:"#0f1110",overflow:"hidden"}}>
+      <div style={{padding:"10px 12px",borderBottom:`1px solid ${C.border}`}}>
+        <input style={inp({boxSizing:"border-box",fontSize:13})} placeholder="Zoek NPC, rol, locatie, tag..." value={search} onChange={e=>setSearch(e.target.value)}/>
+      </div>
+      <div style={{padding:"6px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:5,flexWrap:"wrap"}}>
+        <select style={sel({flex:1,minWidth:70,fontSize:10,padding:"4px 6px"})} value={fRel} onChange={e=>setFRel(e.target.value)}><option value="">Relatie</option>{NPC_RELS.map(r=><option key={r}>{r}</option>)}</select>
+        <select style={sel({flex:1,minWidth:70,fontSize:10,padding:"4px 6px"})} value={fStat} onChange={e=>setFStat(e.target.value)}><option value="">Status</option>{NPC_STATUSES.map(s=><option key={s}>{s}</option>)}</select>
+        <select style={sel({flex:1,minWidth:80,fontSize:10,padding:"4px 6px"})} value={fLoc} onChange={e=>setFLoc(e.target.value)}><option value="">Locatie</option>{locations.map(l=><option key={l}>{l}</option>)}</select>
+      </div>
+      <div style={{padding:"5px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:5}}>
+        <span style={{fontSize:10,color:C.dim,flex:1}}>{filtered.length} NPC's</span>
+        <button onClick={()=>setViewMode(v=>v==="list"?"location":"list")} style={btn("",{fontSize:10,padding:"3px 8px"})}>{viewMode==="list"?"📍 Locatie":"📋 Lijst"}</button>
+        <select style={sel({fontSize:10,padding:"3px 6px",width:"auto"})} value={sortBy} onChange={e=>setSortBy(e.target.value)}>
+          <option value="name">Naam</option><option value="recent">Recent</option>
+          <option value="status">Status</option><option value="relation">Relatie</option><option value="location">Locatie</option>
+        </select>
+      </div>
+      <div style={{flex:1,overflowY:"auto"}}>
+        {filtered.length===0&&<div style={{padding:"30px 14px",textAlign:"center",color:C.dim,fontSize:12}}>{npcs.length===0?"Geen NPC's — maak er een aan":"Geen resultaten"}</div>}
+        {viewMode==="list"&&filtered.map(n=><NpcCard key={n.id} n={n}/>)}
+        {viewMode==="location"&&Object.entries(byLoc).map(([loc,list])=><div key={loc}>
+          <div style={{padding:"5px 12px",background:C.bg,borderBottom:`1px solid ${C.border}`,borderTop:`1px solid ${C.border}`,fontSize:10,color:C.gold,letterSpacing:"0.12em",...cinzel,textTransform:"uppercase",display:"flex",alignItems:"center",gap:6}}>
+            📍{loc}<span style={{color:C.dim,marginLeft:"auto"}}>{list.length}</span>
+          </div>
+          {list.map(n=><NpcCard key={n.id} n={n}/>)}
+        </div>)}
+      </div>
+      <div style={{padding:"8px 10px",borderTop:`1px solid ${C.border}`,display:"flex",gap:5}}>
+        <button onClick={newNpc} style={{...btn("gold"),flex:1,fontSize:11}}>+ Nieuwe NPC</button>
+        <button onClick={exportNpcs} style={btn("",{padding:"7px 10px",fontSize:10})}>⬇</button>
+        <label style={{...btn(),padding:"7px 10px",fontSize:10,cursor:"pointer"}}>⬆<input type="file" accept=".json" style={{display:"none"}} onChange={importNpcs}/></label>
       </div>
     </div>
-  );
+    {/* Right detail */}
+    <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+      {!sel?<Empty icon="🎭" text="Selecteer een NPC" sub="Of maak een nieuwe aan">
+        <button onClick={newNpc} style={{...btn("gold"),marginTop:16,fontSize:12}}>+ Eerste NPC aanmaken</button>
+      </Empty>:<>
+        {/* Header */}
+        <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,background:"linear-gradient(90deg,#1a1208,#111310)",flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
+          <input style={{...inp(),fontFamily:"'Cinzel',serif",fontSize:17,color:C.gold,background:"transparent",border:"none",padding:"2px 0",flex:1}} value={sel.name} onChange={e=>updNpc({...sel,name:e.target.value})} placeholder="NPC naam..."/>
+          <select value={sel.status} onChange={e=>updNpc({...sel,status:e.target.value})} style={sel({width:"auto",fontSize:11,color:NPC_STAT_C[sel.status],border:`1px solid ${NPC_STAT_C[sel.status]}44`})}>{NPC_STATUSES.map(s=><option key={s}>{s}</option>)}</select>
+          <select value={sel.relation} onChange={e=>updNpc({...sel,relation:e.target.value})} style={sel({width:"auto",fontSize:11,color:NPC_REL_C[sel.relation],border:`1px solid ${NPC_REL_C[sel.relation]}44`})}>{NPC_RELS.map(r=><option key={r}>{r}</option>)}</select>
+        </div>
+        <div style={{flex:1,overflowY:"auto",padding:"14px 16px"}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+            <div><label style={lbl}>Ras / Type</label><input style={inp()} value={sel.race} onChange={e=>updNpc({...sel,race:e.target.value})} placeholder="Menselijk, Elf..."/></div>
+            <div><label style={lbl}>Rol / Functie</label><input style={inp()} value={sel.role} onChange={e=>updNpc({...sel,role:e.target.value})} placeholder="Guard, Herbergier..."/></div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 80px",gap:8,marginBottom:10}}>
+            <div><label style={lbl}>Locatie</label><input style={inp()} value={sel.location} onChange={e=>updNpc({...sel,location:e.target.value})} placeholder="Tavern, Dungeon..."/></div>
+            <div><label style={lbl}>CR</label><input style={inp()} value={sel.cr} onChange={e=>updNpc({...sel,cr:e.target.value})} placeholder="1/2, 3..."/></div>
+          </div>
+          {/* Tags */}
+          <div style={{marginBottom:10}}>
+            <label style={lbl}>Tags</label>
+            <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:5}}>
+              {sel.tags.map(t=><span key={t} style={{display:"inline-flex",alignItems:"center",gap:3,padding:"1px 7px",borderRadius:10,fontSize:10,background:"#1e1a10",border:`1px solid ${C.border}`,color:"#8a7050"}}>
+                {t}<span style={{cursor:"pointer",opacity:0.6,fontSize:11}} onClick={()=>updNpc({...sel,tags:sel.tags.filter(x=>x!==t)})}>×</span>
+              </span>)}
+            </div>
+            <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:5}}>
+              {NPC_TAGS_PRE.filter(t=>!sel.tags.includes(t)).map(t=><span key={t} onClick={()=>{if(!sel.tags.includes(t))updNpc({...sel,tags:[...sel.tags,t]});}} style={{fontSize:10,padding:"1px 6px",borderRadius:10,cursor:"pointer",background:C.bg,border:`1px solid ${C.border}`,color:C.dim}}>+ {t}</span>)}
+            </div>
+            <div style={{display:"flex",gap:5}}>
+              <input style={inp({flex:1,fontSize:12,boxSizing:"border-box"})} placeholder="Eigen tag..." value={tagInput} onChange={e=>setTagInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){const t=tagInput.trim().toLowerCase();if(t&&!sel.tags.includes(t))updNpc({...sel,tags:[...sel.tags,t]});setTagInput("");}}}/>
+              <button onClick={()=>{const t=tagInput.trim().toLowerCase();if(t&&!sel.tags.includes(t))updNpc({...sel,tags:[...sel.tags,t]});setTagInput("");}} style={btn("",{padding:"6px 12px",fontSize:12})}>+</button>
+            </div>
+          </div>
+          <Divider/>
+          <div style={{marginBottom:10}}><label style={lbl}>🔒 GM Notities</label><textarea style={{...inp(),minHeight:80,resize:"vertical",lineHeight:1.5}} value={sel.gmNotes} onChange={e=>updNpc({...sel,gmNotes:e.target.value})} placeholder="Geheimen, motivaties, stats, plannen..."/></div>
+          <div><label style={lbl}>👥 Wat de party weet</label><textarea style={{...inp(),minHeight:60,resize:"vertical",lineHeight:1.5}} value={sel.partyKnows} onChange={e=>updNpc({...sel,partyKnows:e.target.value})} placeholder="Naam, verschijning, bekende info..."/></div>
+        </div>
+        {/* Status quick-bar */}
+        <div style={{borderTop:`1px solid ${C.border}`,padding:"8px 16px",display:"flex",gap:6,flexShrink:0,background:C.bg,flexWrap:"wrap"}}>
+          {NPC_STATUSES.map(s=><button key={s} onClick={()=>updNpc({...sel,status:s})} style={{padding:"4px 10px",borderRadius:5,fontSize:10,cursor:"pointer",...cinzel,letterSpacing:"0.05em",background:sel.status===s?`${NPC_STAT_C[s]}22`:"transparent",border:`1px solid ${sel.status===s?NPC_STAT_C[s]+"66":C.border}`,color:sel.status===s?NPC_STAT_C[s]:C.dim}}>{s}</button>)}
+          <button onClick={()=>dupNpc(sel.id)} style={{...btn("",{fontSize:10,padding:"4px 10px"}),marginLeft:"auto"}}>⎘ Dupliceer</button>
+        </div>
+      </>}
+    </div>
+  </div>;
 }
 
-// ── NPC Detail / Edit form ────────────────────────────
-function NpcDetail({ npc, onChange }) {
-  const [tagInput, setTagInput] = useState("");
-
-  if (!npc) return (
-    <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",
-      height:"100%",color:dimmed,textAlign:"center"}}>
-      <div style={{fontSize:44,marginBottom:14,opacity:0.3}}>🎭</div>
-      <div style={{fontFamily:"'Cinzel',serif",fontSize:14,letterSpacing:"0.1em"}}>Selecteer een NPC</div>
-      <div style={{fontSize:12,marginTop:8,color:"#2a1e10"}}>Of maak een nieuwe aan</div>
-    </div>
-  );
-
-  function upd(field, val) { onChange({...npc, [field]: val}); }
-
-  function addTag(t) {
-    t = t.trim().toLowerCase();
-    if (t && !npc.tags.includes(t)) onChange({...npc, tags:[...npc.tags, t]});
-    setTagInput("");
-  }
-  function removeTag(t) { onChange({...npc, tags: npc.tags.filter(x=>x!==t)}); }
-
-  const sc = NPC_STATUS_COLORS[npc.status]  || "#888";
-  const rc = NPC_REL_COLORS[npc.relation]   || "#888";
-
-  const fld = {
-    width:"100%",background:"#0a0c0b",border:`1px solid ${border}`,
-    borderRadius:6,padding:"6px 10px",color:text,
-    fontFamily:"'Crimson Text',Georgia,serif",fontSize:13,boxSizing:"border-box",
-  };
-  const sel = {...fld};
-  const lbl = {fontSize:10,color:muted,letterSpacing:"0.12em",textTransform:"uppercase",
-    marginBottom:3,display:"block"};
-  const row = {marginBottom:10};
-  const grid2 = {display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10};
-
-  return (
-    <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
-      {/* Name header */}
-      <div style={{padding:"12px 16px",borderBottom:`1px solid ${border}`,
-        background:"linear-gradient(90deg,#1a1208,#111310)",flexShrink:0,
-        display:"flex",alignItems:"center",gap:10}}>
-        <div style={{flex:1}}>
-          <input style={{...fld,fontFamily:"'Cinzel',serif",fontSize:17,color:gold,
-            background:"transparent",border:"none",padding:"2px 0"}}
-            value={npc.name} onChange={e=>upd("name",e.target.value)}
-            placeholder="NPC naam..."/>
-        </div>
-        {/* Status + Relation quick badges */}
-        <div style={{display:"flex",gap:6,flexShrink:0}}>
-          <select value={npc.status} onChange={e=>upd("status",e.target.value)}
-            style={{...sel,width:"auto",fontSize:11,color:sc,background:"#0a0c0b",
-              border:`1px solid ${sc}44`}}>
-            {NPC_STATUSES.map(s=><option key={s}>{s}</option>)}
-          </select>
-          <select value={npc.relation} onChange={e=>upd("relation",e.target.value)}
-            style={{...sel,width:"auto",fontSize:11,color:rc,background:"#0a0c0b",
-              border:`1px solid ${rc}44`}}>
-            {NPC_RELATIONS.map(r=><option key={r}>{r}</option>)}
-          </select>
-        </div>
-      </div>
-
-      <div style={{flex:1,overflowY:"auto",padding:"14px 16px"}}>
-        {/* Basic info */}
-        <div style={grid2}>
-          <div><label style={lbl}>Ras / Type</label>
-            <input style={fld} value={npc.race} onChange={e=>upd("race",e.target.value)} placeholder="Menselijk, Elf, Undead..."/></div>
-          <div><label style={lbl}>Rol / Functie</label>
-            <input style={fld} value={npc.role} onChange={e=>upd("role",e.target.value)} placeholder="Stadsguard, Herbergier..."/></div>
-        </div>
-        <div style={grid2}>
-          <div><label style={lbl}>Locatie</label>
-            <input style={fld} value={npc.location} onChange={e=>upd("location",e.target.value)} placeholder="Tavern, Markt, Dungeon..."/></div>
-          <div><label style={lbl}>CR</label>
-            <input style={fld} value={npc.cr} onChange={e=>upd("cr",e.target.value)} placeholder="1/2, 3, 7..."/></div>
-        </div>
-
-        {/* Tags */}
-        <div style={row}>
-          <label style={lbl}>Tags</label>
-          <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:5}}>
-            {npc.tags.map(t=>(
-              <TagPill key={t} label={t} onRemove={()=>removeTag(t)}/>
-            ))}
-          </div>
-          {/* Preset tags */}
-          <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:5}}>
-            {NPC_TAGS_PRESET.filter(t=>!npc.tags.includes(t)).map(t=>(
-              <span key={t} onClick={()=>addTag(t)} style={{
-                fontSize:10,padding:"1px 6px",borderRadius:10,cursor:"pointer",
-                background:"#0d0f0e",border:`1px solid ${border}`,color:dimmed,
-                transition:"color 0.1s",
-              }}>+ {t}</span>
-            ))}
-          </div>
-          <div style={{display:"flex",gap:5}}>
-            <input style={{...fld,flex:1,fontSize:12}} placeholder="Eigen tag..." value={tagInput}
-              onChange={e=>setTagInput(e.target.value)}
-              onKeyDown={e=>{if(e.key==="Enter")addTag(tagInput);}}/>
-            <button onClick={()=>addTag(tagInput)}
-              style={{padding:"6px 12px",borderRadius:6,border:`1px solid ${border}`,
-                background:"transparent",color:muted,cursor:"pointer",fontSize:12}}>+</button>
-          </div>
-        </div>
-
-        <div style={{height:1,background:`linear-gradient(90deg,transparent,${border},transparent)`,margin:"12px 0"}}/>
-
-        {/* GM Notes */}
-        <div style={row}>
-          <label style={lbl}>🔒 GM Notities (verborgen voor spelers)</label>
-          <textarea style={{...fld,minHeight:80,resize:"vertical",lineHeight:1.5}}
-            value={npc.gmNotes} onChange={e=>upd("gmNotes",e.target.value)}
-            placeholder="Geheimen, motivaties, statistieken, plannen..."/>
-        </div>
-
-        {/* Party knows */}
-        <div style={row}>
-          <label style={lbl}>👥 Wat de party weet</label>
-          <textarea style={{...fld,minHeight:60,resize:"vertical",lineHeight:1.5}}
-            value={npc.partyKnows} onChange={e=>upd("partyKnows",e.target.value)}
-            placeholder="Naam, verschijning, bekende info..."/>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// ── NPC Tracker root ──────────────────────────────────
-const NPC_STORAGE = "pf1e-npc-tracker";
-
-function NpcTracker() {
-  const [npcs,       setNpcs]       = useState([]);
-  const [selectedId, setSelectedId] = useState(null);
-  const [search,     setSearch]     = useState("");
-  const [filterRel,  setFilterRel]  = useState("");
-  const [filterStat, setFilterStat] = useState("");
-  const [filterLoc,  setFilterLoc]  = useState("");
-  const [sortBy,     setSortBy]     = useState("name");
-
-  // Persist
-  useEffect(()=>{
-    try{ const d=localStorage.getItem(NPC_STORAGE); if(d) setNpcs(JSON.parse(d)); }catch{}
-  },[]);
-  useEffect(()=>{
-    try{ localStorage.setItem(NPC_STORAGE, JSON.stringify(npcs)); }catch{}
-  },[npcs]);
-
-  function createNpc() {
-    const n = emptyNpc();
-    setNpcs(p=>[n,...p]);
-    setSelectedId(n.id);
-  }
-
-  function updateNpc(updated) {
-    setNpcs(p=>p.map(n=>n.id===updated.id?updated:n));
-  }
-
-  function deleteNpc(id) {
-    setNpcs(p=>p.filter(n=>n.id!==id));
-    if(selectedId===id) setSelectedId(null);
-  }
-
-  function duplicateNpc(id) {
-    const src = npcs.find(n=>n.id===id);
-    if(!src) return;
-    const copy = {...src, id:npcUid(), name:src.name+" (kopie)", createdAt:Date.now()};
-    setNpcs(p=>[copy,...p]);
-    setSelectedId(copy.id);
-  }
-
-  // Unique locations for filter
-  const locations = [...new Set(npcs.map(n=>n.location).filter(Boolean))].sort();
-
-  // Filter + sort
-  const filtered = useMemo(()=>{
-    const q = search.toLowerCase();
-    return npcs
-      .filter(n=>{
-        if(q && !n.name.toLowerCase().includes(q) &&
-                !n.role.toLowerCase().includes(q) &&
-                !n.location.toLowerCase().includes(q) &&
-                !n.tags.some(t=>t.includes(q))) return false;
-        if(filterRel  && n.relation !== filterRel)  return false;
-        if(filterStat && n.status   !== filterStat) return false;
-        if(filterLoc  && n.location !== filterLoc)  return false;
-        return true;
-      })
-      .sort((a,b)=>{
-        if(sortBy==="name")     return (a.name||"").localeCompare(b.name||"");
-        if(sortBy==="status")   return a.status.localeCompare(b.status);
-        if(sortBy==="relation") return a.relation.localeCompare(b.relation);
-        if(sortBy==="location") return (a.location||"").localeCompare(b.location||"");
-        return b.createdAt - a.createdAt; // recent
-      });
-  },[npcs, search, filterRel, filterStat, filterLoc, sortBy]);
-
-  const selected = npcs.find(n=>n.id===selectedId) || null;
-
-  // Export / import
-  function exportNpcs() {
-    const blob = new Blob([JSON.stringify(npcs,null,2)],{type:"application/json"});
-    const url  = URL.createObjectURL(blob);
-    const a    = document.createElement("a"); a.href=url; a.download="pf1e-npcs.json"; a.click();
-    URL.revokeObjectURL(url);
-  }
-  function importNpcs(e) {
-    const file=e.target.files[0]; if(!file) return;
-    const r=new FileReader();
-    r.onload=ev=>{
-      try{
-        const data=JSON.parse(ev.target.result);
-        if(Array.isArray(data)) setNpcs(p=>[...p,...data]);
-      }catch{}
-    };
-    r.readAsText(file);
-    e.target.value="";
-  }
-
-  // Group by location for overview
-  const byLocation = useMemo(()=>{
-    const map={};
-    filtered.forEach(n=>{
-      const loc = n.location || "— Onbekende locatie —";
-      if(!map[loc]) map[loc]=[];
-      map[loc].push(n);
-    });
-    return map;
-  },[filtered]);
-
-  const [viewMode, setViewMode] = useState("list"); // list | location
-
-  const inputStyle = {
-    background:"#0a0c0b",border:`1px solid ${border}`,borderRadius:6,
-    padding:"6px 10px",color:text,fontFamily:"inherit",fontSize:12,outline:"none",
-  };
-  const selStyle = {...inputStyle,cursor:"pointer"};
-
-  return (
-    <div style={{height:"100%",display:"flex",overflow:"hidden"}}>
-
-      {/* ── Left: list ── */}
-      <div style={{width:290,flexShrink:0,display:"flex",flexDirection:"column",
-        borderRight:`1px solid ${border}`,background:"#0f1110",overflow:"hidden"}}>
-
-        {/* Search */}
-        <div style={{padding:"10px 12px",borderBottom:`1px solid ${border}`}}>
-          <input style={{...inputStyle,width:"100%",boxSizing:"border-box",fontSize:13}}
-            placeholder="Zoek NPC, rol, locatie, tag..."
-            value={search} onChange={e=>setSearch(e.target.value)}/>
-        </div>
-
-        {/* Filters */}
-        <div style={{padding:"6px 10px",borderBottom:`1px solid ${border}`,
-          display:"flex",gap:5,flexWrap:"wrap"}}>
-          <select style={{...selStyle,flex:1,minWidth:70,fontSize:10}}
-            value={filterRel} onChange={e=>setFilterRel(e.target.value)}>
-            <option value="">Relatie</option>
-            {NPC_RELATIONS.map(r=><option key={r}>{r}</option>)}
-          </select>
-          <select style={{...selStyle,flex:1,minWidth:70,fontSize:10}}
-            value={filterStat} onChange={e=>setFilterStat(e.target.value)}>
-            <option value="">Status</option>
-            {NPC_STATUSES.map(s=><option key={s}>{s}</option>)}
-          </select>
-          <select style={{...selStyle,flex:1,minWidth:80,fontSize:10}}
-            value={filterLoc} onChange={e=>setFilterLoc(e.target.value)}>
-            <option value="">Locatie</option>
-            {locations.map(l=><option key={l}>{l}</option>)}
-          </select>
-        </div>
-
-        {/* Toolbar */}
-        <div style={{padding:"5px 10px",borderBottom:`1px solid ${border}`,
-          display:"flex",alignItems:"center",gap:5}}>
-          <span style={{fontSize:10,color:dimmed,flex:1}}>{filtered.length} NPC's</span>
-          {/* View toggle */}
-          <button onClick={()=>setViewMode(v=>v==="list"?"location":"list")}
-            style={{...inputStyle,padding:"3px 8px",fontSize:10,cursor:"pointer",color:muted}}>
-            {viewMode==="list"?"📍 Locatie":"📋 Lijst"}
-          </button>
-          <select style={{...selStyle,fontSize:10,padding:"3px 6px"}}
-            value={sortBy} onChange={e=>setSortBy(e.target.value)}>
-            <option value="name">Naam</option>
-            <option value="recent">Recent</option>
-            <option value="status">Status</option>
-            <option value="relation">Relatie</option>
-            <option value="location">Locatie</option>
-          </select>
-        </div>
-
-        {/* List */}
-        <div style={{flex:1,overflowY:"auto"}}>
-          {filtered.length===0 && (
-            <div style={{padding:"30px 14px",textAlign:"center",color:dimmed,fontSize:12}}>
-              {npcs.length===0 ? "Geen NPC's — maak er een aan" : "Geen resultaten"}
-            </div>
-          )}
-
-          {viewMode==="list" && filtered.map(n=>(
-            <NpcCard key={n.id} npc={n}
-              isSelected={selectedId===n.id}
-              onClick={()=>setSelectedId(n.id)}
-              onDelete={deleteNpc}/>
-          ))}
-
-          {viewMode==="location" && Object.entries(byLocation).map(([loc,npcList])=>(
-            <div key={loc}>
-              <div style={{padding:"5px 12px",background:"#0d0f0e",
-                borderBottom:`1px solid ${border}`,borderTop:`1px solid ${border}`,
-                fontSize:10,color:gold,letterSpacing:"0.12em",
-                fontFamily:"'Cinzel',serif",textTransform:"uppercase",
-                display:"flex",alignItems:"center",gap:6}}>
-                <span>📍</span>{loc}
-                <span style={{color:dimmed,marginLeft:"auto"}}>{npcList.length}</span>
-              </div>
-              {npcList.map(n=>(
-                <NpcCard key={n.id} npc={n}
-                  isSelected={selectedId===n.id}
-                  onClick={()=>setSelectedId(n.id)}
-                  onDelete={deleteNpc}/>
-              ))}
-            </div>
-          ))}
-        </div>
-
-        {/* Bottom actions */}
-        <div style={{padding:"8px 10px",borderTop:`1px solid ${border}`,
-          display:"flex",gap:5,flexWrap:"wrap"}}>
-          <button onClick={createNpc}
-            style={{flex:1,padding:"7px",borderRadius:6,fontSize:11,
-              fontFamily:"'Cinzel',serif",letterSpacing:"0.06em",cursor:"pointer",
-              background:"rgba(139,94,60,0.2)",border:`1px solid ${goldDim}`,color:gold}}>
-            + Nieuwe NPC
-          </button>
-          <button onClick={exportNpcs}
-            style={{padding:"7px 10px",borderRadius:6,fontSize:10,cursor:"pointer",
-              background:"transparent",border:`1px solid ${border}`,color:muted}}>⬇</button>
-          <label style={{padding:"7px 10px",borderRadius:6,fontSize:10,cursor:"pointer",
-            background:"transparent",border:`1px solid ${border}`,color:muted}}>
-            ⬆<input type="file" accept=".json" style={{display:"none"}} onChange={importNpcs}/>
-          </label>
-        </div>
-      </div>
-
-      {/* ── Right: detail ── */}
-      <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
-        {selected ? (
-          <>
-            <NpcDetail npc={selected} onChange={updateNpc}/>
-            {/* Quick actions bar */}
-            <div style={{borderTop:`1px solid ${border}`,padding:"8px 16px",
-              display:"flex",gap:8,flexShrink:0,background:"#0d0f0e"}}>
-              {NPC_STATUSES.map(s=>(
-                <button key={s} onClick={()=>updateNpc({...selected,status:s})}
-                  style={{padding:"4px 10px",borderRadius:5,fontSize:10,cursor:"pointer",
-                    fontFamily:"'Cinzel',serif",letterSpacing:"0.05em",
-                    background:selected.status===s?`${NPC_STATUS_COLORS[s]}22`:"transparent",
-                    border:`1px solid ${selected.status===s?NPC_STATUS_COLORS[s]+"66":border}`,
-                    color:selected.status===s?NPC_STATUS_COLORS[s]:dimmed}}>
-                  {s}
-                </button>
-              ))}
-              <button onClick={()=>duplicateNpc(selected.id)}
-                style={{marginLeft:"auto",padding:"4px 10px",borderRadius:5,fontSize:10,
-                  cursor:"pointer",background:"transparent",border:`1px solid ${border}`,color:muted}}>
-                ⎘ Dupliceer
-              </button>
-            </div>
-          </>
-        ) : (
-          <div style={{display:"flex",flexDirection:"column",alignItems:"center",
-            justifyContent:"center",height:"100%",color:dimmed,textAlign:"center"}}>
-            <div style={{fontSize:44,marginBottom:14,opacity:0.3}}>🎭</div>
-            <div style={{fontFamily:"'Cinzel',serif",fontSize:14,letterSpacing:"0.1em"}}>
-              Selecteer een NPC
-            </div>
-            <div style={{fontSize:12,marginTop:8,color:"#2a1e10"}}>Of maak een nieuwe aan</div>
-            <button onClick={createNpc}
-              style={{marginTop:16,padding:"8px 20px",borderRadius:6,fontSize:12,
-                fontFamily:"'Cinzel',serif",letterSpacing:"0.08em",cursor:"pointer",
-                background:"rgba(139,94,60,0.2)",border:`1px solid ${goldDim}`,color:gold}}>
-              + Eerste NPC aanmaken
-            </button>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════════════════
-// UNIFIED GM COMMAND — Root App
-// Initiative Tracker + Monster Quickview + Encounter Builder
-// Pathfinder 1e — Archives of Nethys ruleset
-// ═══════════════════════════════════════════════════════
-
-const TABS = [
-  { key: "initiative", icon: "⚔️", label: "Initiative Tracker" },
-  { key: "monsters",   icon: "📖", label: "Monster Quickview" },
-  { key: "encounters", icon: "🗺️", label: "Encounter Builder" },
-  { key: "npcs",       icon: "🎭", label: "NPC Tracker" },
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROOT APP
+// ═══════════════════════════════════════════════════════════════════════════════
+const TABS=[
+  {key:"initiative",icon:"⚔️",label:"Initiative Tracker"},
+  {key:"monsters",  icon:"📖",label:"Monster Quickview"},
+  {key:"encounters",icon:"🗺️",label:"Encounter Builder"},
+  {key:"npcs",      icon:"🎭",label:"NPC Tracker"},
 ];
 
-function App() {
-  const [tab, setTab] = useState(() => localStorage.getItem("pf1e-active-tab") || "initiative");
-  const [toast, setToast] = useState(null);
-
-  useEffect(() => { localStorage.setItem("pf1e-active-tab", tab); }, [tab]);
-
-  function showToast(msg, color="#2ecc71") {
-    setToast({msg, color});
-    setTimeout(() => setToast(null), 2500);
-  }
-
-  // When monster quickview sends to tracker: switch tab
-  function handleAddToCombat(monsterData) {
-    const pending = JSON.parse(localStorage.getItem("pf1e-gm-tracker-import") || '{"combatants":[]}');
-    pending.combatants.push({
-      id: Math.random().toString(36).slice(2),
-      name: monsterData.name,
-      type: "Enemy",
-      initBonus: monsterData.initBonus || 0,
-      initiative: 0,
-      hpMax: monsterData.hpMax || 0,
-      hpCurrent: monsterData.hpMax || 0,
-      ac: monsterData.ac || 10,
-      conScore: monsterData.conScore || 10,
-      conditions: [],
-    });
-    pending.timestamp = Date.now();
-    localStorage.setItem("pf1e-gm-tracker-import", JSON.stringify(pending));
+function App(){
+  const [tab,setTab]=useState(()=>localStorage.getItem("pf1e-active-tab")||"initiative");
+  const [toast,setToast]=useState(null);
+  useEffect(()=>{localStorage.setItem("pf1e-active-tab",tab);},[tab]);
+  function showToast(msg,color="#2ecc71"){setToast({msg,color});setTimeout(()=>setToast(null),2500);}
+  function addToTracker(comData){
+    const existing=JSON.parse(localStorage.getItem("pf1e-gm-initiative")||'{"coms":[]}');
+    existing.coms=existing.coms||[];
+    existing.coms.push(comData);
+    localStorage.setItem("pf1e-gm-initiative",JSON.stringify(existing));
+    // Also set import signal
+    localStorage.setItem("pf1e-tracker-import",JSON.stringify({coms:[comData],ts:Date.now()}));
     setTab("initiative");
-    showToast(`${monsterData.name} toegevoegd aan tracker`);
+    showToast(`${comData.name} toegevoegd aan tracker`);
   }
-
-  const monsters = window.MONSTERS || [];
-
-  return (
-    <div style={{height:"100vh",display:"flex",flexDirection:"column",fontFamily:"'Crimson Text',Georgia,serif",color:text,background:"#0d0f0e",overflow:"hidden"}}>
-      {/* Toast */}
-      {toast && (
-        <div style={{position:"fixed",top:14,right:14,background:"#1a1a1a",border:`1px solid ${toast.color}`,borderRadius:8,padding:"9px 16px",fontSize:13,color:toast.color,zIndex:1000,fontFamily:"'Cinzel',serif",letterSpacing:"0.06em",boxShadow:"0 4px 20px rgba(0,0,0,0.6)"}}>
-          {toast.msg}
-        </div>
-      )}
-
-      {/* Top bar */}
-      <div style={{background:"linear-gradient(135deg,#1a0e05,#0d0f0e)",borderBottom:`1px solid ${border}`,padding:"0 20px",display:"flex",alignItems:"stretch",flexShrink:0,height:48}}>
-        {/* Logo */}
-        <div style={{display:"flex",alignItems:"center",gap:10,paddingRight:20,borderRight:`1px solid ${border}`,marginRight:4}}>
-          <span style={{fontSize:18}}>⚔️</span>
-          <div>
-            <div style={{fontFamily:"'Cinzel','Palatino Linotype',serif",fontSize:15,fontWeight:700,color:gold,letterSpacing:"0.08em",lineHeight:1}}>GM COMMAND</div>
-            <div style={{fontSize:9,color:muted,letterSpacing:"0.18em",textTransform:"uppercase"}}>Pathfinder 1e · {monsters.length.toLocaleString()} monsters</div>
-          </div>
-        </div>
-
-        {/* Tabs */}
-        {TABS.map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)} style={{
-            display:"flex",alignItems:"center",gap:6,
-            padding:"0 18px",
-            fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:"0.08em",
-            cursor:"pointer",border:"none",borderBottom:`2px solid ${tab===t.key?gold:"transparent"}`,
-            background:tab===t.key?"rgba(200,149,42,0.07)":"transparent",
-            color:tab===t.key?gold:muted,
-            transition:"all 0.15s",
-          }}>
-            <span>{t.icon}</span> {t.label}
-          </button>
-        ))}
-
-        {/* Right: AoN link */}
-        <div style={{marginLeft:"auto",display:"flex",alignItems:"center"}}>
-          <a href="https://aonprd.com" target="_blank" rel="noopener noreferrer"
-            style={{fontSize:10,color:"#4a6a8a",textDecoration:"none",letterSpacing:"0.1em",display:"flex",alignItems:"center",gap:4}}>
-            Archives of Nethys ↗
-          </a>
+  const monsters=window.MONSTERS||[];
+  return <div style={{height:"100vh",display:"flex",flexDirection:"column",fontFamily:"'Crimson Text',Georgia,serif",color:C.text,background:C.bg,overflow:"hidden"}}>
+    {toast&&<div style={{position:"fixed",top:14,right:14,background:"#1a1a1a",border:`1px solid ${toast.color}`,borderRadius:8,padding:"9px 16px",fontSize:13,color:toast.color,zIndex:1000,...cinzel,letterSpacing:"0.06em",boxShadow:"0 4px 20px rgba(0,0,0,0.6)"}}>{toast.msg}</div>}
+    <div style={{background:"linear-gradient(135deg,#1a0e05,#0d0f0e)",borderBottom:`1px solid ${C.border}`,padding:"0 20px",display:"flex",alignItems:"stretch",flexShrink:0,height:48}}>
+      <div style={{display:"flex",alignItems:"center",gap:10,paddingRight:20,borderRight:`1px solid ${C.border}`,marginRight:4}}>
+        <span style={{fontSize:18}}>⚔️</span>
+        <div>
+          <div style={{...cinzel,fontSize:15,fontWeight:700,color:C.gold,letterSpacing:"0.08em",lineHeight:1}}>GM COMMAND</div>
+          <div style={{fontSize:9,color:C.muted,letterSpacing:"0.18em",textTransform:"uppercase"}}>Pathfinder 1e · {monsters.length.toLocaleString()} monsters</div>
         </div>
       </div>
-
-      {/* Content */}
-      <div style={{flex:1,overflow:"hidden"}}>
-        {tab === "initiative" && <InitiativeTracker />}
-        {tab === "monsters"   && <MonsterQuickview onAddToCombat={handleAddToCombat} />}
-        {tab === "encounters" && <EncounterBuilder onShowToast={showToast} />}
-        {tab === "npcs"       && <NpcTracker />}
+      {TABS.map(t=><button key={t.key} onClick={()=>setTab(t.key)} style={{display:"flex",alignItems:"center",gap:6,padding:"0 16px",fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:"0.08em",cursor:"pointer",border:"none",borderBottom:`2px solid ${tab===t.key?C.gold:"transparent"}`,background:tab===t.key?"rgba(200,149,42,0.07)":"transparent",color:tab===t.key?C.gold:C.muted,transition:"all 0.15s"}}><span>{t.icon}</span>{t.label}</button>)}
+      <div style={{marginLeft:"auto",display:"flex",alignItems:"center"}}>
+        <a href="https://aonprd.com" target="_blank" rel="noopener noreferrer" style={{fontSize:10,color:"#4a6a8a",textDecoration:"none",letterSpacing:"0.1em"}}>Archives of Nethys ↗</a>
       </div>
     </div>
-  );
+    <div style={{flex:1,overflow:"hidden"}}>
+      {tab==="initiative"&&<InitiativeTracker/>}
+      {tab==="monsters"  &&<MonsterQuickview onAddToCombat={addToTracker}/>}
+      {tab==="encounters"&&<EncounterBuilder onToast={showToast}/>}
+      {tab==="npcs"      &&<NpcTracker/>}
+    </div>
+  </div>;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
-
 </script>
 </body>
 </html>
