@@ -414,6 +414,28 @@ function MonsterSearch({onAdd}){
   </div>;
 }
 
+
+function ManualMonsterAdd({onAdd}){
+  const [open,setOpen]=useState(false);
+  const [mn,setMn]=useState("");
+  const [mcr,setMcr]=useState("1");
+  function submit(){
+    if(!mn.trim())return;
+    onAdd({name:mn.trim(),cr:mcr,hp:0,ac:0,init:0,con:10});
+    setMn(""); setOpen(false);
+  }
+  if(!open) return <button style={{...btn(),width:"100%",marginTop:6,fontSize:11}} onClick={()=>setOpen(true)}>+ Handmatig toevoegen</button>;
+  return <div style={{display:"flex",gap:6,marginTop:6,alignItems:"center"}}>
+    <input style={inp({flex:1,boxSizing:"border-box"})} placeholder="Naam..." value={mn}
+      onChange={e=>setMn(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}/>
+    <select style={sel({width:70})} value={mcr} onChange={e=>setMcr(e.target.value)}>
+      {CR_LIST.map(c=><option key={c} value={c}>CR {c}</option>)}
+    </select>
+    <button style={btn("gold")} onClick={submit}>+</button>
+    <button style={btn()} onClick={()=>{setOpen(false);setMn("");}}>✕</button>
+  </div>;
+}
+
 function EncounterBuilder({onToast}){
   const SK="pf1e-enc-builder";
   const [sessions,setSessions]=useState([]);
@@ -560,13 +582,7 @@ function EncounterBuilder({onToast}){
             {/* Add monster */}
             <MonsterSearch onAdd={m=>{const ex=(activeEnc.monsters||[]).findIndex(x=>x.name===m.name&&x.cr===m.cr);if(ex>=0){const ms=[...(activeEnc.monsters||[])];ms[ex]={...ms[ex],count:(ms[ex].count||1)+1};updEnc({...activeEnc,monsters:ms});}else{updEnc({...activeEnc,monsters:[...(activeEnc.monsters||[]),{id:uid(),name:m.name,cr:m.cr,count:1,hp:m.hp,ac:m.ac,init:m.init,con:m.con}]});}}}/>
             {/* Manual add */}
-            {(()=>{const [open,setOpen]=useState(false);const [mn,setMn]=useState("");const [mcr,setMcr]=useState("1");
-            return open?<div style={{display:"flex",gap:6,marginTop:6,alignItems:"center"}}>
-              <input style={inp({flex:1,boxSizing:"border-box"})} placeholder="Naam..." value={mn} onChange={e=>setMn(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"&&mn.trim()){updEnc({...activeEnc,monsters:[...(activeEnc.monsters||[]),{id:uid(),name:mn.trim(),cr:mcr,count:1,hp:0,ac:0,init:0,con:10}]});setMn("");setOpen(false);}}}/>
-              <select style={sel({width:70})} value={mcr} onChange={e=>setMcr(e.target.value)}>{CR_LIST.map(c=><option key={c} value={c}>CR {c}</option>)}</select>
-              <button style={btn("gold")} onClick={()=>{if(mn.trim()){updEnc({...activeEnc,monsters:[...(activeEnc.monsters||[]),{id:uid(),name:mn.trim(),cr:mcr,count:1,hp:0,ac:0,init:0,con:10}]});setMn("");setOpen(false);}}}>+</button>
-              <button style={btn()} onClick={()=>{setOpen(false);setMn("");}}>✕</button>
-            </div>:<button style={{...btn(),width:"100%",marginTop:6,fontSize:11}} onClick={()=>setOpen(true)}>+ Handmatig toevoegen</button>;})()}
+            <ManualMonsterAdd onAdd={m=>updEnc({...activeEnc,monsters:[...(activeEnc.monsters||[]),{id:uid(),name:m.name,cr:m.cr,count:1,hp:m.hp||0,ac:m.ac||0,init:m.init||0,con:m.con||10}]})}/>
             <Divider/>
             <div style={{marginBottom:10}}><label style={lbl}>GM Notities</label><textarea style={{...inp(),minHeight:70,resize:"vertical",lineHeight:1.5}} value={activeEnc.notes||""} onChange={e=>updEnc({...activeEnc,notes:e.target.value})} placeholder="Locatie, triggers, tactiek..."/></div>
             <div><label style={lbl}>Loot / Rewards</label><textarea style={{...inp(),minHeight:44,resize:"vertical",lineHeight:1.5}} value={activeEnc.loot||""} onChange={e=>updEnc({...activeEnc,loot:e.target.value})} placeholder="Gold, items, XP..."/></div>
@@ -640,6 +656,32 @@ function EncounterBuilder({onToast}){
 // ═══════════════════════════════════════════════════════════════════════════════
 // MODULE 4 — NPC TRACKER
 // ═══════════════════════════════════════════════════════════════════════════════
+function NpcCard({n, selId, setSelId, delNpc}){
+  const sc=NPC_STAT_C[n.status]||"#888"; const rc=NPC_REL_C[n.relation]||"#888";
+  const dead=n.status==="Dood";
+  return <div onClick={()=>setSelId(n.id)} style={{padding:"8px 12px",cursor:"pointer",borderLeft:`3px solid ${selId===n.id?C.gold:"transparent"}`,borderBottom:`1px solid ${C.border}`,background:selId===n.id?"rgba(200,149,42,0.08)":"transparent",opacity:dead?0.55:1}}>
+    <div style={{display:"flex",alignItems:"flex-start",gap:6}}>
+      <div style={{width:8,height:8,borderRadius:"50%",background:sc,flexShrink:0,marginTop:4}}/>
+      <div style={{flex:1,minWidth:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
+          <span style={{...cinzel,fontSize:12,color:selId===n.id?C.gold:C.text,textDecoration:dead?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:130}}>
+            {n.name||<em style={{color:C.dim}}>Naamloze NPC</em>}
+          </span>
+          <span style={{fontSize:9,padding:"1px 5px",borderRadius:3,background:`${rc}18`,border:`1px solid ${rc}55`,color:rc}}>{n.relation}</span>
+        </div>
+        <div style={{fontSize:10,color:C.dim,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
+          {[n.race,n.role].filter(Boolean).join(" · ")}
+          {n.location&&<span style={{color:"#4a3a28"}}> @ {n.location}</span>}
+        </div>
+        {n.tags.length>0&&<div style={{marginTop:3}}>
+          {n.tags.slice(0,3).map(t=><span key={t} style={{display:"inline-block",padding:"1px 6px",borderRadius:10,fontSize:10,background:"#1e1a10",border:`1px solid ${C.border}`,color:"#8a7050",marginRight:3}}>{t}</span>)}
+          {n.tags.length>3&&<span style={{fontSize:9,color:C.dim}}>+{n.tags.length-3}</span>}
+        </div>}
+      </div>
+      <button onClick={e=>{e.stopPropagation();delNpc(n.id);}} style={{background:"transparent",border:"none",color:"#4a2020",cursor:"pointer",fontSize:13,padding:"0 2px",flexShrink:0}}>✕</button>
+    </div>
+  </div>;
+}
 function NpcTracker(){
   const SK="pf1e-npc-tracker";
   const [npcs,setNpcs]=useState([]);
@@ -679,32 +721,7 @@ function NpcTracker(){
   function exportNpcs(){const blob=new Blob([JSON.stringify(npcs,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="pf1e-npcs.json";a.click();URL.revokeObjectURL(url);}
   function importNpcs(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(Array.isArray(d))setNpcs(p=>[...p,...d]);}catch{}};r.readAsText(f);e.target.value="";}
 
-  function NpcCard({n}){
-    const sc=NPC_STAT_C[n.status]||"#888"; const rc=NPC_REL_C[n.relation]||"#888";
-    const dead=n.status==="Dood";
-    return <div onClick={()=>setSelId(n.id)} style={{padding:"8px 12px",cursor:"pointer",borderLeft:`3px solid ${selId===n.id?C.gold:"transparent"}`,borderBottom:`1px solid ${C.border}`,background:selId===n.id?"rgba(200,149,42,0.08)":"transparent",opacity:dead?0.55:1}}>
-      <div style={{display:"flex",alignItems:"flex-start",gap:6}}>
-        <div style={{width:8,height:8,borderRadius:"50%",background:sc,flexShrink:0,marginTop:4}}/>
-        <div style={{flex:1,minWidth:0}}>
-          <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-            <span style={{...cinzel,fontSize:12,color:selId===n.id?C.gold:C.text,textDecoration:dead?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:130}}>
-              {n.name||<em style={{color:C.dim}}>Naamloze NPC</em>}
-            </span>
-            <span style={{fontSize:9,padding:"1px 5px",borderRadius:3,background:`${rc}18`,border:`1px solid ${rc}55`,color:rc}}>{n.relation}</span>
-          </div>
-          <div style={{fontSize:10,color:C.dim,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-            {[n.race,n.role].filter(Boolean).join(" · ")}
-            {n.location&&<span style={{color:"#4a3a28"}}> @ {n.location}</span>}
-          </div>
-          {n.tags.length>0&&<div style={{marginTop:3}}>
-            {n.tags.slice(0,3).map(t=><span key={t} style={{display:"inline-block",padding:"1px 6px",borderRadius:10,fontSize:10,background:"#1e1a10",border:`1px solid ${C.border}`,color:"#8a7050",marginRight:3}}>{t}</span>)}
-            {n.tags.length>3&&<span style={{fontSize:9,color:C.dim}}>+{n.tags.length-3}</span>}
-          </div>}
-        </div>
-        <button onClick={e=>{e.stopPropagation();delNpc(n.id);}} style={{background:"transparent",border:"none",color:"#4a2020",cursor:"pointer",fontSize:13,padding:"0 2px",flexShrink:0}}>✕</button>
-      </div>
-    </div>;
-  }
+
 
   return <div style={{height:"100%",display:"flex",overflow:"hidden"}}>
     {/* Left list */}
@@ -727,12 +744,12 @@ function NpcTracker(){
       </div>
       <div style={{flex:1,overflowY:"auto"}}>
         {filtered.length===0&&<div style={{padding:"30px 14px",textAlign:"center",color:C.dim,fontSize:12}}>{npcs.length===0?"Geen NPC's — maak er een aan":"Geen resultaten"}</div>}
-        {viewMode==="list"&&filtered.map(n=><NpcCard key={n.id} n={n}/>)}
+        {viewMode==="list"&&filtered.map(n=><NpcCard key={n.id} n={n} selId={selId} setSelId={setSelId} delNpc={delNpc}/>)}
         {viewMode==="location"&&Object.entries(byLoc).map(([loc,list])=><div key={loc}>
           <div style={{padding:"5px 12px",background:C.bg,borderBottom:`1px solid ${C.border}`,borderTop:`1px solid ${C.border}`,fontSize:10,color:C.gold,letterSpacing:"0.12em",...cinzel,textTransform:"uppercase",display:"flex",alignItems:"center",gap:6}}>
             📍{loc}<span style={{color:C.dim,marginLeft:"auto"}}>{list.length}</span>
           </div>
-          {list.map(n=><NpcCard key={n.id} n={n}/>)}
+          {list.map(n=><NpcCard key={n.id} n={n} selId={selId} setSelId={setSelId} delNpc={delNpc}/>)}
         </div>)}
       </div>
       <div style={{padding:"8px 10px",borderTop:`1px solid ${C.border}`,display:"flex",gap:5}}>
