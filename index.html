@@ -4,1035 +4,1282 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PF1e GM Command</title>
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&display=swap" rel="stylesheet">
 <script src="monsters.js"></script>
 <style>
+:root {
+  --gold: #c8952a;
+  --gold-dim: #8B5E3C;
+  --bg: #0d0f0e;
+  --bg2: #111310;
+  --bg3: #0f1110;
+  --border: #2a2018;
+  --text: #d4c5a9;
+  --muted: #6a5535;
+  --dim: #3a2a18;
+  --red: #c0392b;
+  --green: #2ecc71;
+  --blue: #4a9eff;
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0d0f0e}
-::-webkit-scrollbar{width:6px}
-::-webkit-scrollbar-track{background:#0d0f0e}
-::-webkit-scrollbar-thumb{background:#2a2018;border-radius:3px}
-input:focus,select:focus,textarea:focus{border-color:#8B5E3C!important;outline:none}
-select option{background:#0d0f0e;color:#d4c5a9}
-@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
-.fi{animation:fadeIn 0.2s ease}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:'Crimson Text',Georgia,serif;font-size:15px}
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+input,select,textarea{background:var(--bg);border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:inherit;font-size:13px;padding:6px 9px;outline:none;transition:border-color .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--gold-dim)}
+select option{background:var(--bg)}
+button{cursor:pointer;font-family:'Cinzel',serif;font-size:11px;letter-spacing:.06em;border-radius:5px;padding:6px 12px;border:1px solid var(--border);background:transparent;color:var(--muted);transition:all .15s}
+button:hover{border-color:var(--gold-dim);color:var(--text)}
+button.gold{background:rgba(139,94,60,.2);border-color:var(--gold-dim);color:var(--gold)}
+button.gold:hover{background:rgba(139,94,60,.35)}
+button.green{background:rgba(30,60,30,.3);border-color:#3a5a3a;color:#7ab87a}
+button.red{background:rgba(80,20,20,.2);border-color:#4a1818;color:var(--red)}
+button.blue{background:rgba(30,50,80,.3);border-color:#3a5a8a;color:#7aaad8}
+button:disabled{opacity:.4;cursor:not-allowed}
+label{font-size:10px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;display:block;margin-bottom:3px}
+.cinzel{font-family:'Cinzel',serif}
+.hidden{display:none!important}
+/* Layout */
+#app{display:flex;flex-direction:column;height:100vh}
+#topbar{display:flex;align-items:stretch;height:46px;background:linear-gradient(135deg,#1a0e05,#0d0f0e);border-bottom:1px solid var(--border);padding:0 16px;gap:6px;flex-shrink:0}
+.logo{display:flex;align-items:center;gap:8px;padding-right:16px;border-right:1px solid var(--border);margin-right:4px}
+.logo-title{font-family:'Cinzel',serif;font-size:15px;font-weight:700;color:var(--gold);letter-spacing:.08em;line-height:1;text-shadow:0 0 20px rgba(200,149,42,.4)}
+.logo-sub{font-size:9px;color:var(--muted);letter-spacing:.18em;text-transform:uppercase}
+.mode-btns{display:flex;align-items:center}
+.mode-btn{border-radius:0;border:1px solid var(--border);padding:5px 14px;font-size:11px;letter-spacing:.06em;color:var(--muted)}
+.mode-btn:first-child{border-radius:5px 0 0 5px}
+.mode-btn:last-child{border-radius:0 5px 5px 0}
+.mode-btn.active{background:rgba(200,149,42,.15);border-color:var(--gold-dim);color:var(--gold)}
+.context-hint{display:flex;align-items:center;font-size:11px;color:var(--muted);font-style:italic;margin-left:8px}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+#body{display:flex;flex:1;overflow:hidden}
+/* Sidebar */
+#sidebar{width:168px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border);background:#0c0e0d}
+.sidebar-section-label{padding:10px 12px 6px;border-bottom:1px solid var(--border);font-family:'Cinzel',serif;font-size:9px;color:var(--muted);letter-spacing:.2em;text-transform:uppercase}
+#steps{flex:1;overflow-y:auto;padding:6px 0}
+.step-btn{width:100%;text-align:left;padding:10px 12px;background:transparent;border:none;border-left:3px solid transparent;border-radius:0;display:flex;align-items:flex-start;gap:9px;color:var(--text)}
+.step-btn:hover{background:rgba(255,255,255,.02)}
+.step-btn.active{background:rgba(200,149,42,.1);border-left-color:var(--gold)}
+.step-num{width:20px;height:20px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:11px;font-weight:700;flex-shrink:0;background:#1e1a10;color:var(--muted);margin-top:1px}
+.step-btn.active .step-num{background:var(--gold);color:#0d0f0e}
+.step-connector{width:1px;height:12px;background:var(--border);margin:3px 0 0 9px}
+.step-label{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.05em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.step-btn.active .step-label{color:var(--gold)}
+.step-sub{font-size:10px;color:var(--dim);margin-top:1px;line-height:1.3}
+.sidebar-bottom{padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0}
+/* Main */
+#main{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.module-header{padding:8px 16px;border-bottom:1px solid var(--border);background:linear-gradient(90deg,#141210,#0f1110);display:flex;align-items:center;gap:8px;flex-shrink:0}
+.module-title{font-family:'Cinzel',serif;font-size:13px;color:var(--gold);letter-spacing:.08em}
+.module-sub{font-size:10px;color:var(--muted)}
+.module-content{flex:1;overflow:hidden;display:flex;flex-direction:column}
+/* Panels */
+.panel{background:var(--bg2);border-radius:0}
+.panel-head{background:linear-gradient(90deg,#1a1208,#111310);border-bottom:1px solid var(--border);padding:9px 14px;display:flex;align-items:center;gap:8px}
+.panel-title{font-family:'Cinzel',serif;font-size:11px;letter-spacing:.12em;color:var(--gold);text-transform:uppercase}
+/* Initiative tracker */
+#it-wrap{display:flex;flex-direction:column;height:100%}
+#it-toolbar{padding:9px 16px;border-bottom:1px solid var(--border);display:flex;gap:7px;align-items:center;background:var(--bg);flex-shrink:0}
+#it-log{background:#0a0c0b;border-bottom:1px solid var(--border);height:90px;overflow-y:auto;padding:5px 16px;flex-shrink:0}
+.log-entry{font-size:11px;color:var(--muted);font-family:monospace;border-bottom:1px solid var(--border);padding:2px 0}
+#it-active-banner{background:rgba(200,149,42,.07);border-bottom:1px solid rgba(200,149,42,.2);padding:7px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+#it-list{flex:1;overflow-y:auto;padding:10px 16px}
+#it-add-form{border-top:1px solid var(--border);padding:10px 16px;background:var(--bg);flex-shrink:0}
+.it-add-grid{display:grid;grid-template-columns:1fr 75px 55px 65px 65px 70px;gap:7px;align-items:end}
+.combatant-row{display:grid;grid-template-columns:36px 1fr 52px 88px 105px 46px auto;gap:7px;align-items:center;padding:8px 10px;border-radius:7px;margin-bottom:4px;border:1px solid #1e1812;background:rgba(255,255,255,.01);transition:all .2s}
+.combatant-row.active-turn{background:rgba(200,149,42,.07);border-color:var(--gold-dim)}
+.combatant-row.dead{opacity:.5;border-color:#4a1818}
+.init-box{width:36px;height:36px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-family:'Cinzel',serif;font-size:15px;font-weight:700;cursor:pointer;background:#111;border:1px solid var(--border);color:#8a7050;flex-shrink:0}
+.init-box.active{background:rgba(200,149,42,.15);border-color:var(--gold);color:var(--gold)}
+.hp-bar-wrap{height:3px;background:#1a1a1a;border-radius:2px;margin-top:3px;overflow:hidden}
+.hp-bar{height:100%;border-radius:2px;transition:width .3s}
+.cond-tag{display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:3px;font-size:10px;margin:1px 2px 1px 0;cursor:pointer;border:1px solid}
+.cond-panel{display:flex;flex-wrap:wrap;gap:3px;margin-top:5px;padding:6px;background:var(--bg);border-radius:5px;border:1px solid var(--border)}
+.dmg-input{width:44px;background:var(--bg);border:1px solid var(--border);border-radius:4px;padding:2px 4px;color:var(--text);font-size:12px;text-align:center;outline:none}
+/* Monster quickview */
+#mq-wrap{display:flex;height:100%;overflow:hidden}
+#mq-sidebar{width:275px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--bg3)}
+#mq-list{flex:1;overflow-y:auto}
+.mq-item{padding:7px 11px;cursor:pointer;border-left:3px solid transparent;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;transition:all .1s}
+.mq-item:hover{background:rgba(255,255,255,.02)}
+.mq-item.selected{background:rgba(200,149,42,.08);border-left-color:var(--gold)}
+.cr-badge{font-family:'Cinzel',serif;font-size:10px;padding:1px 5px;border-radius:3px;background:#1a1208;border:1px solid var(--border);color:var(--gold);min-width:26px;text-align:center;flex-shrink:0}
+#mq-detail{flex:1;overflow-y:auto;padding:18px 22px}
+.stat-row{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
+.stat-box{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:5px 9px;text-align:center;min-width:50px}
+.stat-box-label{font-size:9px;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+.stat-box-val{font-family:'Cinzel',serif;font-size:14px;color:var(--text);line-height:1.2}
+.stat-box-mod{font-size:10px;color:var(--muted)}
+.divider{height:1px;background:linear-gradient(90deg,transparent,var(--border),transparent);margin:11px 0}
+/* Encounter builder */
+#eb-wrap{display:flex;flex-direction:column;height:100%;overflow:hidden}
+#eb-toolbar{padding:7px 14px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;background:var(--bg);flex-shrink:0}
+#eb-body{flex:1;display:flex;overflow:hidden}
+.eb-col{display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--bg3);overflow:hidden}
+.eb-list{flex:1;overflow-y:auto;padding:6px}
+.eb-card{padding:8px 10px;border-radius:6px;margin-bottom:4px;cursor:pointer;background:transparent;border:1px solid var(--border);transition:all .15s}
+.eb-card:hover{border-color:var(--gold-dim)}
+.eb-card.selected{background:rgba(200,149,42,.08);border-color:var(--gold-dim)}
+.eb-card-title{font-family:'Cinzel',serif;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.eb-card.selected .eb-card-title{color:var(--gold)}
+#eb-detail{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#eb-right{width:255px;flex-shrink:0;display:flex;flex-direction:column;overflow:hidden;background:var(--bg3)}
+.diff-badge{display:inline-flex;align-items:center;padding:2px 7px;border-radius:4px;font-size:10px;font-family:'Cinzel',serif;letter-spacing:.08em}
+.xp-bar-wrap{height:7px;background:#1a1a1a;border-radius:3px;position:relative;overflow:visible;margin:8px 0 5px}
+.xp-bar-fill{height:100%;border-radius:3px;transition:width .4s;min-width:0}
+.xp-thresh-mark{position:absolute;top:-2px;width:1px;height:11px;z-index:2}
+.monster-row{display:flex;align-items:center;gap:7px;padding:7px 9px;background:var(--bg);border:1px solid var(--border);border-radius:6px;margin-bottom:4px}
+/* NPC tracker */
+#npc-wrap{display:flex;height:100%;overflow:hidden}
+#npc-sidebar{width:285px;flex-shrink:0;display:flex;flex-direction:column;border-right:1px solid var(--border);background:var(--bg3)}
+#npc-list{flex:1;overflow-y:auto}
+.npc-item{padding:8px 11px;cursor:pointer;border-left:3px solid transparent;border-bottom:1px solid var(--border);transition:all .1s}
+.npc-item:hover{background:rgba(255,255,255,.02)}
+.npc-item.selected{background:rgba(200,149,42,.08);border-left-color:var(--gold)}
+.status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+#npc-detail{flex:1;overflow:hidden;display:flex;flex-direction:column}
+.npc-detail-body{flex:1;overflow-y:auto;padding:13px 15px}
+.status-bar{display:flex;gap:5px;padding:8px 15px;border-top:1px solid var(--border);background:var(--bg);flex-shrink:0;flex-wrap:wrap}
+.status-quick-btn{padding:4px 10px;border-radius:5px;font-size:10px;font-family:'Cinzel',serif;letter-spacing:.05em}
+.rel-badge{font-size:9px;padding:1px 5px;border-radius:3px}
+.tag-pill{display:inline-flex;align-items:center;gap:3px;padding:1px 7px;border-radius:10px;font-size:10px;background:#1e1a10;border:1px solid var(--border);color:#8a7050;margin:2px 3px 2px 0}
+/* Autocomplete */
+.autocomplete-wrap{position:relative}
+.autocomplete-list{position:absolute;top:100%;left:0;right:0;background:var(--bg3);border:1px solid var(--gold-dim);border-radius:5px;z-index:50;max-height:220px;overflow-y:auto;margin-top:3px}
+.autocomplete-item{padding:7px 11px;cursor:pointer;display:flex;align-items:center;gap:7px;border-bottom:1px solid var(--border)}
+.autocomplete-item:hover{background:rgba(200,149,42,.07)}
+/* Toast */
+#toast{position:fixed;top:14px;right:14px;background:#1a1a1a;border-radius:7px;padding:9px 16px;font-family:'Cinzel',serif;font-size:12px;letter-spacing:.06em;box-shadow:0 4px 20px rgba(0,0,0,.6);z-index:1000;transition:opacity .3s;opacity:0;pointer-events:none}
+#toast.show{opacity:1}
+/* Help modal */
+#help-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:200;align-items:center;justify-content:center}
+#help-modal.show{display:flex}
+.help-box{background:#141210;border:1px solid var(--gold-dim);border-radius:10px;padding:22px 26px;max-width:400px;width:90%;box-shadow:0 8px 40px rgba(0,0,0,.8)}
+/* Empty state */
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--dim);text-align:center;padding:20px}
+.empty-icon{font-size:42px;margin-bottom:14px;opacity:.3}
+.empty-title{font-family:'Cinzel',serif;font-size:14px;letter-spacing:.1em}
+.empty-sub{font-size:12px;margin-top:8px;color:#2a1e10}
+/* Tabs in EB right panel */
+.tab-row{display:flex;border-bottom:1px solid var(--border)}
+.tab-btn{flex:1;padding:8px;border:none;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-family:'Cinzel',serif;font-size:11px;border-radius:0}
+.tab-btn.active{border-bottom-color:var(--gold);color:var(--gold);background:rgba(200,149,42,.05)}
+/* Misc */
+a{color:#4a6a8a;text-decoration:none}
+a:hover{color:#7aaad8}
+.section-label{font-family:'Cinzel',serif;font-size:11px;color:var(--gold-dim);letter-spacing:.15em;text-transform:uppercase;margin-bottom:6px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:9px}
+.mb8{margin-bottom:8px}
+.aon-link{font-size:11px}
+textarea{width:100%;resize:vertical;line-height:1.5;min-height:60px}
 </style>
 </head>
 <body>
-<div id="root"></div>
-<script type="text/babel">
-const {useState,useEffect,useRef,useMemo} = React;
-
-// ─── SHARED CONSTANTS ────────────────────────────────────────────────────────
-const C = {
-  gold:    "#c8952a",
-  goldDim: "#8B5E3C",
-  border:  "#2a2018",
-  text:    "#d4c5a9",
-  muted:   "#6a5535",
-  dim:     "#3a2a18",
-  panel:   "#111310",
-  bg:      "#0d0f0e",
-};
-
-// shared input/select/label styles
-const inp = (extra={}) => ({width:"100%",background:"#0a0c0b",border:`1px solid ${C.border}`,borderRadius:6,padding:"6px 10px",color:C.text,fontFamily:"inherit",fontSize:13,boxSizing:"border-box",...extra});
-const sel = (extra={}) => ({...inp(),cursor:"pointer",...extra});
-const lbl = {fontSize:10,color:C.muted,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:3,display:"block"};
-const btn = (v="",extra={}) => ({padding:"6px 13px",borderRadius:6,fontSize:11,fontFamily:"'Cinzel',serif",letterSpacing:"0.06em",cursor:"pointer",border:"1px solid",transition:"all 0.15s",
-  ...(v==="gold" ? {background:"rgba(139,94,60,0.2)",borderColor:C.goldDim,color:C.gold} :
-      v==="green"? {background:"rgba(30,60,30,0.3)", borderColor:"#3a5a3a",color:"#7ab87a"} :
-      v==="red"  ? {background:"rgba(80,20,20,0.2)", borderColor:"#4a1818",color:"#c0392b"} :
-      v==="blue" ? {background:"rgba(30,50,80,0.3)", borderColor:"#3a5a8a",color:"#7aaad8"} :
-                   {background:"transparent",         borderColor:C.border, color:C.muted}),
-  ...extra});
-const cinzel = {fontFamily:"'Cinzel','Palatino Linotype',serif"};
-function uid(){return Math.random().toString(36).slice(2,10)}
-function sign(n){if(n==null)return"—";return(n>=0?"+":"")+n}
-function d20(){return Math.floor(Math.random()*20)+1}
-function fmtXP(n){return n>=1000?(n/1000).toFixed(n%1000===0?0:1)+"k":String(n||0)}
-
-// ─── PF1e DATA ───────────────────────────────────────────────────────────────
-const CONDITIONS=[
-  {id:"bleed",label:"Bleed",color:"#c0392b"},{id:"blinded",label:"Blinded",color:"#7f8c8d"},
-  {id:"confused",label:"Confused",color:"#8e44ad"},{id:"cowering",label:"Cowering",color:"#e67e22"},
-  {id:"dazed",label:"Dazed",color:"#95a5a6"},{id:"dazzled",label:"Dazzled",color:"#f1c40f"},
-  {id:"deafened",label:"Deafened",color:"#7f8c8d"},{id:"dying",label:"Dying",color:"#e74c3c"},
-  {id:"entangled",label:"Entangled",color:"#27ae60"},{id:"exhausted",label:"Exhausted",color:"#e67e22"},
-  {id:"fascinated",label:"Fascinated",color:"#9b59b6"},{id:"fatigued",label:"Fatigued",color:"#d35400"},
-  {id:"flat-footed",label:"Flat-Footed",color:"#95a5a6"},{id:"frightened",label:"Frightened",color:"#e74c3c"},
-  {id:"grappled",label:"Grappled",color:"#e67e22"},{id:"helpless",label:"Helpless",color:"#c0392b"},
-  {id:"nauseated",label:"Nauseated",color:"#27ae60"},{id:"panicked",label:"Panicked",color:"#e74c3c"},
-  {id:"paralyzed",label:"Paralyzed",color:"#2c3e50"},{id:"pinned",label:"Pinned",color:"#e67e22"},
-  {id:"prone",label:"Prone",color:"#95a5a6"},{id:"shaken",label:"Shaken",color:"#e74c3c"},
-  {id:"sickened",label:"Sickened",color:"#27ae60"},{id:"stable",label:"Stable",color:"#2ecc71"},
-  {id:"staggered",label:"Staggered",color:"#e67e22"},{id:"stunned",label:"Stunned",color:"#8e44ad"},
-  {id:"unconscious",label:"Unconscious",color:"#7f8c8d"},
-];
-const CTYPE_COLORS={PC:"#4a9eff",Enemy:"#e74c3c",Ally:"#2ecc71",Summon:"#9b59b6"};
-const CR_XP={"1/8":50,"1/6":65,"1/4":100,"1/3":135,"1/2":200,"1":400,"2":600,"3":800,"4":1200,"5":1600,"6":2400,"7":3200,"8":4800,"9":6400,"10":9600,"11":12800,"12":19200,"13":25600,"14":38400,"15":51200,"16":76800,"17":102400,"18":153600,"19":204800,"20":307200,"21":409600,"22":614400,"23":819200,"24":1228800,"25":1638400};
-const XP_THRESH={"1":[50,100,150,400],"2":[100,200,300,600],"3":[150,300,450,800],"4":[200,400,625,1200],"5":[300,500,750,1600],"6":[400,750,1100,2400],"7":[500,900,1300,3200],"8":[600,1400,2000,4800],"9":[800,1600,2400,6400],"10":[1000,2000,2800,9600],"11":[1200,2400,3600,12800],"12":[1600,3000,4500,19200],"13":[2000,3800,5600,25600],"14":[2500,4500,6400,38400],"15":[3000,5500,8000,51200],"16":[3500,6500,9600,76800],"17":[4000,7500,11000,102400],"18":[5000,8500,13000,153600],"19":[5500,10000,15000,204800],"20":[6000,11000,16000,307200]};
-const DIFF_LABELS=["Easy","Medium","Hard","Epic"];
-const DIFF_COLORS=["#2ecc71","#f39c12","#e67e22","#e74c3c"];
-const PF1_CLASSES=["Barbarian","Bard","Cleric","Druid","Fighter","Monk","Paladin","Ranger","Rogue","Sorcerer","Wizard","Alchemist","Cavalier","Gunslinger","Inquisitor","Magus","Oracle","Summoner","Witch","Ninja","Samurai","Arcanist","Bloodrager","Brawler","Hunter","Investigator","Shaman","Skald","Slayer","Swashbuckler","Warpriest","Kineticist","Medium","Mesmerist","Occultist","Psychic","Spiritualist","Shifter","Vigilante","Unchained Barbarian","Unchained Monk","Unchained Rogue","Unchained Summoner","Adept","Aristocrat","Commoner","Expert","Warrior","Arcane Archer","Arcane Trickster","Assassin","Dragon Disciple","Duelist","Eldritch Knight","Loremaster","Mystic Theurge","Pathfinder Chronicler","Shadowdancer","Antipaladin"];
-const CR_LIST=["1/8","1/6","1/4","1/3","1/2","1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16","17","18","19","20","21","22","23","24","25"];
-const CTYPES_ALL=["aberration","animal","construct","dragon","fey","humanoid","magical beast","monstrous humanoid","ooze","outsider","plant","undead","vermin"];
-const SIZES_ALL=["Fine","Diminutive","Tiny","Small","Medium","Large","Huge","Gargantuan","Colossal"];
-const NPC_STATUSES=["Levend","Dood","Gevlucht","Onbekend","Gevangen"];
-const NPC_RELS=["Vriend","Neutraal","Vijand","Onbekend","Wisselvallig"];
-const NPC_STAT_C={"Levend":"#2ecc71","Dood":"#c0392b","Gevlucht":"#e67e22","Onbekend":"#7f8c8d","Gevangen":"#9b59b6"};
-const NPC_REL_C={"Vriend":"#2ecc71","Neutraal":"#95a5a6","Vijand":"#e74c3c","Onbekend":"#7f8c8d","Wisselvallig":"#f39c12"};
-const NPC_TAGS_PRE=["quest giver","informant","merchant","guard","noble","villain","ally","contact","witness","captive","recurring"];
-
-// ─── ENCOUNTER HELPERS ───────────────────────────────────────────────────────
-function calcRawXP(monsters){return (monsters||[]).reduce((s,m)=>s+(CR_XP[m.cr]||0)*(m.count||1),0)}
-function monsterCount(monsters){return (monsters||[]).reduce((s,m)=>s+(m.count||1),0)}
-function xpMultiplier(n){return n<=1?1:n===2?1.5:n<=6?2:n<=10?2.5:n<=14?3:4}
-function adjXP(monsters){const r=calcRawXP(monsters);return Math.round(r*xpMultiplier(monsterCount(monsters)))}
-function partyAvgLevel(party){if(!party||!party.members.length)return 1;return Math.round(party.members.reduce((s,m)=>s+(m.level||1),0)/party.members.length)}
-function getDiff(xp,party){
-  if(!party||!party.members.length)return null;
-  const lvl=Math.min(20,Math.max(1,partyAvgLevel(party)));
-  const t=XP_THRESH[String(lvl)];if(!t)return null;
-  const xpPP=xp/party.members.length;
-  if(xpPP<t[0])return{label:"Trivial",color:"#5a5a6a"};
-  if(xpPP<t[1])return{label:"Easy",   color:DIFF_COLORS[0]};
-  if(xpPP<t[2])return{label:"Medium", color:DIFF_COLORS[1]};
-  if(xpPP<t[3])return{label:"Hard",   color:DIFF_COLORS[2]};
-  return{label:"Epic",color:DIFF_COLORS[3]};
-}
-function getThresholds(party){
-  if(!party||!party.members.length)return null;
-  const t=XP_THRESH[String(Math.min(20,Math.max(1,partyAvgLevel(party))))];
-  return t?t.map(v=>v*party.members.length):null;
-}
-
-// ─── SHARED UI ───────────────────────────────────────────────────────────────
-function PanelHead({title,children}){
-  return <div style={{background:"linear-gradient(90deg,#1a1208,#111310)",borderBottom:`1px solid ${C.border}`,padding:"9px 14px",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-    <span style={{...cinzel,fontSize:12,letterSpacing:"0.12em",color:C.gold,textTransform:"uppercase"}}>{title}</span>
-    {children}
-  </div>;
-}
-function Divider(){return <div style={{height:1,background:`linear-gradient(90deg,transparent,${C.border},transparent)`,margin:"12px 0"}}/>}
-function Empty({icon,text,sub,action}){
-  return <div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",color:C.dim,textAlign:"center",padding:20}}>
-    <div style={{fontSize:44,marginBottom:14,opacity:0.3}}>{icon}</div>
-    <div style={{...cinzel,fontSize:14,letterSpacing:"0.1em",color:C.dim}}>{text}</div>
-    {sub&&<div style={{fontSize:12,marginTop:8,color:"#2a1e10"}}>{sub}</div>}
-    {action}
-  </div>;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// MODULE 1 — INITIATIVE TRACKER
-// ═══════════════════════════════════════════════════════════════════════════════
-function CombatantRow({c,isActive,onUpdate,onRemove}){
-  const [dmg,setDmg]=useState(""); const [heal,setHeal]=useState("");
-  const [showC,setShowC]=useState(false); const [editI,setEditI]=useState(false);
-  const [iVal,setIVal]=useState(String(c.initiative));
-  const pct=c.hpMax>0?Math.max(0,Math.min(100,(c.hpCurrent/c.hpMax)*100)):100;
-  const hpCol=pct>60?"#2ecc71":pct>30?"#f39c12":"#e74c3c";
-  const dead=c.hpCurrent<=-(c.conScore||10)&&c.hpMax>0;
-  const dying=c.hpCurrent<0&&!dead&&c.hpMax>0;
-  const tc=CTYPE_COLORS[c.type]||"#888";
-  function applyDmg(){const v=parseInt(dmg);if(!isNaN(v)&&v>0){onUpdate({hpCurrent:Math.max(-999,c.hpCurrent-v)});setDmg("");}}
-  function applyHeal(){const v=parseInt(heal);if(!isNaN(v)&&v>0){onUpdate({hpCurrent:Math.min(c.hpMax||9999,c.hpCurrent+v)});setHeal("");}}
-  function togCond(id){const cs=c.conditions||[];onUpdate({conditions:cs.includes(id)?cs.filter(x=>x!==id):[...cs,id]});}
-  return <div style={{display:"grid",gridTemplateColumns:"36px 1fr 56px 90px 110px 50px 1fr",gap:8,alignItems:"center",padding:"9px 12px",borderRadius:8,marginBottom:5,border:"1px solid",borderColor:isActive?C.goldDim:dead?"#4a1818":"#1e1812",background:isActive?"rgba(200,149,42,0.07)":dead?"rgba(192,57,43,0.04)":"rgba(255,255,255,0.01)",opacity:dead?0.5:1,transition:"all 0.2s"}}>
-    <div onClick={()=>setEditI(true)} style={{width:36,height:36,borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",...cinzel,fontSize:15,fontWeight:700,cursor:"pointer",background:isActive?"rgba(200,149,42,0.15)":"#111",border:`1px solid ${isActive?C.gold:C.border}`,color:isActive?C.gold:"#8a7050"}}>
-      {editI?<input autoFocus style={{width:28,background:"transparent",border:"none",color:C.gold,...cinzel,fontSize:13,textAlign:"center",outline:"none"}} value={iVal} onChange={e=>setIVal(e.target.value)} onBlur={()=>{const v=parseInt(iVal);if(!isNaN(v))onUpdate({initiative:v});setEditI(false);}} onKeyDown={e=>{if(e.key==="Enter"){const v=parseInt(iVal);if(!isNaN(v))onUpdate({initiative:v});setEditI(false);}}}/>:c.initiative}
-    </div>
-    <div>
-      <div style={{display:"flex",alignItems:"center",gap:5}}>
-        {isActive&&<span style={{color:C.gold,fontSize:10}}>▶</span>}
-        <span style={{...cinzel,fontSize:13,color:dead?"#5a3a3a":C.text,textDecoration:dead?"line-through":"none"}}>{c.name}</span>
-        <span style={{fontSize:9,padding:"1px 4px",borderRadius:3,background:`${tc}22`,border:`1px solid ${tc}44`,color:tc}}>{c.type}</span>
-        {dying&&<span style={{fontSize:9,color:"#e74c3c",...cinzel}}>DYING</span>}
-        {dead&&<span style={{fontSize:9,color:"#7a2020",...cinzel}}>DEAD</span>}
-      </div>
-      <div style={{marginTop:2,display:"flex",flexWrap:"wrap"}}>
-        {(c.conditions||[]).map(id=>{const cd=CONDITIONS.find(x=>x.id===id);if(!cd)return null;return <span key={id} onClick={()=>togCond(id)} style={{display:"inline-flex",alignItems:"center",gap:3,padding:"1px 6px",borderRadius:3,fontSize:10,marginRight:3,marginBottom:2,cursor:"pointer",border:"1px solid",color:cd.color,borderColor:`${cd.color}55`,background:`${cd.color}11`}}>{cd.label} ✕</span>;})}
+<div id="app">
+  <div id="topbar">
+    <div class="logo">
+      <span style="font-size:18px">⚔️</span>
+      <div>
+        <div class="logo-title">GM COMMAND</div>
+        <div class="logo-sub" id="monster-count-label">Pathfinder 1e</div>
       </div>
     </div>
-    <div style={{textAlign:"center"}}><div style={lbl}>AC</div><div style={{...cinzel,fontSize:15,color:"#9ab8d8"}}>{c.ac||"—"}</div></div>
-    <div>
-      <div style={lbl}>HP</div>
-      <div style={{display:"flex",alignItems:"center",gap:4}}>
-        <span style={{...cinzel,fontSize:14,color:hpCol}}>{c.hpCurrent}</span>
-        <span style={{color:C.dim,fontSize:11}}>/{c.hpMax||"∞"}</span>
-      </div>
-      {c.hpMax>0&&<div style={{height:3,borderRadius:2,background:"#1a1a1a",marginTop:3,overflow:"hidden"}}><div style={{height:"100%",borderRadius:2,background:hpCol,width:`${pct}%`,transition:"width 0.3s"}}/></div>}
+    <div class="mode-btns">
+      <button class="mode-btn active" id="btn-prep" onclick="setMode('prep')">📋 Voorbereiding</button>
+      <button class="mode-btn" id="btn-play" onclick="setMode('play')">🎲 Spelen</button>
     </div>
-    <div>
-      <div style={lbl}>Dmg / Heal</div>
-      <div style={{display:"flex",gap:3}}>
-        <input style={{width:46,background:"#0a0c0b",border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 5px",color:C.text,fontFamily:"inherit",fontSize:12,textAlign:"center",outline:"none"}} placeholder="dmg" value={dmg} onChange={e=>setDmg(e.target.value)} onKeyDown={e=>e.key==="Enter"&&applyDmg()}/>
-        <button style={btn("red",{padding:"2px 6px",fontSize:13,borderRadius:4})} onClick={applyDmg}>−</button>
-      </div>
-      <div style={{display:"flex",gap:3,marginTop:3}}>
-        <input style={{width:46,background:"#0a0c0b",border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 5px",color:C.text,fontFamily:"inherit",fontSize:12,textAlign:"center",outline:"none"}} placeholder="heal" value={heal} onChange={e=>setHeal(e.target.value)} onKeyDown={e=>e.key==="Enter"&&applyHeal()}/>
-        <button style={btn("green",{padding:"2px 6px",fontSize:13,borderRadius:4})} onClick={applyHeal}>+</button>
-      </div>
-    </div>
-    <div style={{textAlign:"center"}}><div style={lbl}>Init+</div><div style={{color:C.muted,fontSize:12}}>{sign(c.initBonus)}</div></div>
-    <div style={{display:"flex",gap:4,flexWrap:"wrap",alignItems:"flex-start"}}>
-      <button style={btn("",{fontSize:11,padding:"3px 8px"})} onClick={()=>setShowC(s=>!s)}>{showC?"▲":"▼"} cond</button>
-      <button style={btn("red",{fontSize:11,padding:"3px 7px"})} onClick={onRemove}>✕</button>
-      {showC&&<div style={{width:"100%",marginTop:4,display:"flex",flexWrap:"wrap",gap:3}}>
-        {CONDITIONS.map(cd=>{const a=(c.conditions||[]).includes(cd.id);return <span key={cd.id} onClick={()=>togCond(cd.id)} style={{display:"inline-flex",alignItems:"center",gap:3,padding:"1px 6px",borderRadius:3,fontSize:10,marginRight:3,marginBottom:2,cursor:"pointer",border:"1px solid",color:a?cd.color:C.dim,borderColor:a?`${cd.color}66`:C.border,background:a?`${cd.color}18`:"transparent"}}>{cd.label}</span>;})}
-      </div>}
-    </div>
-  </div>;
-}
-
-function InitiativeTracker({onAddCombatants}){
-  const [coms,setComs]=useState([]);
-  const [activeIdx,setActiveIdx]=useState(0);
-  const [round,setRound]=useState(1);
-  const [started,setStarted]=useState(false);
-  const [log,setLog]=useState([]);
-  const [showLog,setShowLog]=useState(false);
-  const [aName,setAName]=useState(""); const [aType,setAType]=useState("Enemy");
-  const [aBonus,setABonus]=useState("0"); const [aHP,setAHP]=useState("");
-  const [aAC,setAAC]=useState(""); const [aCON,setACON]=useState("10");
-  const [rolledI,setRolledI]=useState(null);
-  const logRef=useRef(null);
-  const SK="pf1e-gm-initiative";
-
-  useEffect(()=>{try{const d=localStorage.getItem(SK);if(d){const p=JSON.parse(d);setComs(p.coms||[]);setActiveIdx(p.activeIdx||0);setRound(p.round||1);setStarted(p.started||false);setLog(p.log||[]);}}catch{}},[]);
-  useEffect(()=>{try{localStorage.setItem(SK,JSON.stringify({coms,activeIdx,round,started,log}));}catch{}},[coms,activeIdx,round,started,log]);
-  useEffect(()=>{if(logRef.current)logRef.current.scrollTop=logRef.current.scrollHeight;},[log]);
-
-  // Accept monsters from other modules
-  useEffect(()=>{
-    function checkImport(){
-      try{
-        const raw=localStorage.getItem("pf1e-tracker-import");
-        if(!raw)return;
-        const d=JSON.parse(raw);
-        if(d&&d.ts&&d.ts>Date.now()-5000){
-          setComs(p=>[...p,...(d.coms||[])]);
-          localStorage.removeItem("pf1e-tracker-import");
-        }
-      }catch{}
-    }
-    checkImport();
-    window.addEventListener("focus",checkImport);
-    return()=>window.removeEventListener("focus",checkImport);
-  },[]);
-
-  function addLog(msg){const t=new Date().toLocaleTimeString("nl",{hour:"2-digit",minute:"2-digit"});setLog(p=>[...p.slice(-99),`[${t}] ${msg}`]);}
-  function addCom(){
-    if(!aName.trim())return;
-    const bonus=parseInt(aBonus)||0;
-    const init=rolledI!==null?rolledI:d20()+bonus;
-    const c={id:uid(),name:aName.trim(),type:aType,initBonus:bonus,initiative:init,hpMax:parseInt(aHP)||0,hpCurrent:parseInt(aHP)||0,ac:parseInt(aAC)||0,conScore:parseInt(aCON)||10,conditions:[]};
-    setComs(p=>[...p,c]);addLog(`${c.name} (${c.type}) — Init ${c.initiative}`);
-    setAName("");setAHP("");setAAC("");setABonus("0");setRolledI(null);
-  }
-  function updateC(id,upd){setComs(p=>p.map(c=>{if(c.id!==id)return c;if("hpCurrent"in upd){const d=upd.hpCurrent-c.hpCurrent;if(d<0)addLog(`${c.name} −${-d} HP → ${upd.hpCurrent}`);else if(d>0)addLog(`${c.name} +${d} HP → ${upd.hpCurrent}`);}return{...c,...upd};}));}
-  function startCombat(){const s=[...coms].sort((a,b)=>b.initiative-a.initiative);setComs(s);setActiveIdx(0);setStarted(true);setRound(1);addLog("═══ COMBAT GESTART ═══");addLog("Volgorde: "+s.map(c=>`${c.name}(${c.initiative})`).join(", "));}
-  function nextTurn(){const n=(activeIdx+1)%coms.length;if(n===0){setRound(r=>r+1);addLog(`─── Ronde ${round+1} ───`);}setActiveIdx(n);if(coms[n])addLog(`Beurt: ${coms[n].name}`);}
-
-  const sorted=started?coms:[...coms].sort((a,b)=>b.initiative-a.initiative);
-  const active=sorted[activeIdx];
-
-  return <div style={{height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-    {/* Toolbar */}
-    <div style={{padding:"10px 20px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:8,alignItems:"center",background:C.bg,flexShrink:0}}>
-      {!started?<>
-        <button style={btn("green")} onClick={()=>{setComs(p=>p.map(c=>({...c,initiative:d20()+(c.initBonus||0)})));addLog("🎲 All initiatives rolled");}}>🎲 Roll All</button>
-        <button style={btn("gold")} onClick={startCombat} disabled={coms.length===0}>▶ Start Combat</button>
-      </>:<>
-        <button style={{...btn("gold"),fontSize:13}} onClick={nextTurn}>Volgende beurt ▶</button>
-        <button style={btn("red")} onClick={()=>{setStarted(false);setActiveIdx(0);addLog("■ Combat gestopt");}}>■ Stop</button>
-        {started&&<div style={{...cinzel,fontSize:11,color:C.gold,marginLeft:4}}>Ronde {round}</div>}
-      </>}
-      <button style={btn("",{fontSize:11})} onClick={()=>setShowLog(s=>!s)}>{showLog?"▲":"▼"} Log</button>
-      <button style={{...btn("red",{fontSize:11}),marginLeft:"auto"}} onClick={()=>{if(window.confirm("Reset encounter?")){{setComs([]);setActiveIdx(0);setRound(1);setStarted(false);}}}}>🗑 Reset</button>
-      <span style={{fontSize:11,color:C.dim}}>{coms.length} deelnemers</span>
-    </div>
-    {/* Log */}
-    {showLog&&<div ref={logRef} style={{background:"#0a0c0b",borderBottom:`1px solid ${C.border}`,height:100,overflowY:"auto",padding:"6px 20px",flexShrink:0}}>
-      {log.map((e,i)=><div key={i} style={{fontSize:11,color:C.muted,fontFamily:"monospace",borderBottom:`1px solid ${C.border}`,padding:"2px 0"}}>{e}</div>)}
-    </div>}
-    {/* Active banner */}
-    {started&&active&&<div style={{background:"rgba(200,149,42,0.07)",borderBottom:`1px solid rgba(200,149,42,0.2)`,padding:"8px 20px",display:"flex",alignItems:"center",gap:12,flexShrink:0}}>
-      <span style={{fontSize:16}}>⚔️</span>
-      <div><div style={{fontSize:10,color:C.muted,letterSpacing:"0.15em",textTransform:"uppercase"}}>Actieve beurt</div>
-        <div style={{...cinzel,fontSize:18,color:C.gold}}>{active.name}</div></div>
-      <div style={{marginLeft:"auto",display:"flex",gap:16}}>
-        <div style={{textAlign:"center"}}><div style={{fontSize:10,color:C.muted}}>AC</div><div style={{...cinzel,fontSize:20,color:"#9ab8d8"}}>{active.ac||"—"}</div></div>
-        <div style={{textAlign:"center"}}><div style={{fontSize:10,color:C.muted}}>HP</div><div style={{...cinzel,fontSize:20,color:"#2ecc71"}}>{active.hpCurrent}<span style={{fontSize:13,color:C.dim}}>/{active.hpMax||"∞"}</span></div></div>
-      </div>
-    </div>}
-    {/* List */}
-    <div style={{flex:1,overflowY:"auto",padding:"12px 20px"}}>
-      {sorted.length===0?<Empty icon="⚔️" text="Geen deelnemers" sub="Voeg PCs en vijanden toe via het formulier hieronder"/>:
-        sorted.map((c,i)=><CombatantRow key={c.id} c={c} isActive={started&&i===activeIdx} onUpdate={u=>updateC(c.id,u)} onRemove={()=>{setComs(p=>p.filter(x=>x.id!==c.id));addLog(`${c.name} verwijderd`);}}/>)}
-    </div>
-    {/* Add form */}
-    <div style={{borderTop:`1px solid ${C.border}`,padding:"12px 20px",background:C.bg,flexShrink:0}}>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 80px 60px 70px 70px 80px",gap:8,alignItems:"end"}}>
-        <div><label style={lbl}>Naam</label><input style={inp()} value={aName} onChange={e=>setAName(e.target.value)} onKeyDown={e=>e.key==="Enter"&&addCom()} placeholder="Goblin, Harsk..."/></div>
-        <div><label style={lbl}>Type</label><select style={sel()} value={aType} onChange={e=>setAType(e.target.value)}>{["PC","Enemy","Ally","Summon"].map(t=><option key={t}>{t}</option>)}</select></div>
-        <div><label style={lbl}>Init +</label><input style={inp()} type="number" value={aBonus} onChange={e=>setABonus(e.target.value)}/></div>
-        <div><label style={lbl}>HP</label><input style={inp()} type="number" value={aHP} onChange={e=>setAHP(e.target.value)} placeholder="0"/></div>
-        <div><label style={lbl}>AC</label><input style={inp()} type="number" value={aAC} onChange={e=>setAAC(e.target.value)} placeholder="10"/></div>
-        <div><label style={lbl}>CON</label><input style={inp()} type="number" value={aCON} onChange={e=>setACON(e.target.value)} placeholder="10"/></div>
-      </div>
-      <div style={{display:"flex",gap:8,marginTop:10,alignItems:"center"}}>
-        <button style={btn()} onClick={()=>{const b=parseInt(aBonus)||0;setRolledI(d20()+b);}}>🎲 Roll d20</button>
-        {rolledI!==null&&<span style={{color:C.gold,...cinzel,fontSize:14}}>= {rolledI}</span>}
-        <button style={btn("gold")} onClick={addCom}>+ Toevoegen</button>
-      </div>
-    </div>
-  </div>;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// MODULE 2 — MONSTER QUICKVIEW
-// ═══════════════════════════════════════════════════════════════════════════════
-function MonsterQuickview({onAddToCombat}){
-  const monsters=window.MONSTERS||[];
-  const [q,setQ]=useState(""); const [fCR,setFCR]=useState(""); const [fType,setFType]=useState(""); const [fSize,setFSize]=useState("");
-  const [sel2,setSel2]=useState(null);
-  const sRef=useRef(null);
-  useEffect(()=>{sRef.current?.focus();},[]);
-  const filtered=useMemo(()=>{const ql=q.toLowerCase().trim();return monsters.filter(m=>{if(ql&&!m.name.toLowerCase().includes(ql)&&!(m.type||"").toLowerCase().includes(ql))return false;if(fCR&&m.cr!==fCR)return false;if(fType&&m.type!==fType)return false;if(fSize&&m.size!==fSize)return false;return true;}).slice(0,300);},[monsters,q,fCR,fType,fSize]);
-  function addToTracker(m){
-    const c={id:uid(),name:m.name,type:"Enemy",initBonus:m.init||0,initiative:0,hpMax:m.hp||0,hpCurrent:m.hp||0,ac:m.ac||10,conScore:m.con||10,conditions:[]};
-    if(onAddToCombat)onAddToCombat(c);
-  }
-  const sm=sel2;
-  function SB({label,value,mod}){return <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 9px",textAlign:"center",minWidth:52}}>
-    <div style={{fontSize:9,color:C.muted,letterSpacing:"0.12em",textTransform:"uppercase"}}>{label}</div>
-    <div style={{...cinzel,fontSize:15,color:C.text,lineHeight:1.2}}>{value??("—")}</div>
-    {mod!==undefined&&<div style={{fontSize:10,color:C.muted}}>{mod}</div>}
-  </div>;}
-  function abMod(s){if(s==null)return null;const m=Math.floor((s-10)/2);return(m>=0?"+":"")+m;}
-  return <div style={{height:"100%",display:"flex",overflow:"hidden"}}>
-    {/* Sidebar */}
-    <div style={{width:280,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${C.border}`,background:"#0f1110",overflow:"hidden"}}>
-      <div style={{padding:"10px 12px",borderBottom:`1px solid ${C.border}`}}>
-        <input ref={sRef} style={inp({boxSizing:"border-box",fontSize:14})} placeholder="Zoek naam of type..." value={q} onChange={e=>setQ(e.target.value)}/>
-      </div>
-      <div style={{padding:"6px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:5}}>
-        <select style={sel({flex:1,fontSize:11,padding:"4px 6px"})} value={fCR} onChange={e=>setFCR(e.target.value)}><option value="">CR</option>{CR_LIST.map(c=><option key={c} value={c}>CR {c}</option>)}</select>
-        <select style={sel({flex:1,fontSize:11,padding:"4px 6px"})} value={fType} onChange={e=>setFType(e.target.value)}><option value="">Type</option>{CTYPES_ALL.map(t=><option key={t} value={t}>{t}</option>)}</select>
-        <select style={sel({flex:1,fontSize:11,padding:"4px 6px"})} value={fSize} onChange={e=>setFSize(e.target.value)}><option value="">Size</option>{SIZES_ALL.map(s=><option key={s} value={s}>{s}</option>)}</select>
-      </div>
-      <div style={{padding:"5px 12px",fontSize:11,color:C.dim,borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between"}}>
-        <span>{filtered.length}{filtered.length===300?"+":""} resultaten</span>
-        {(q||fCR||fType||fSize)&&<span style={{cursor:"pointer",color:C.muted}} onClick={()=>{setQ("");setFCR("");setFType("");setFSize("");}}>✕ wis</span>}
-      </div>
-      <div style={{flex:1,overflowY:"auto"}}>
-        {filtered.map(m=><div key={m.name+(m.source||"")} onClick={()=>setSel2(m)} style={{padding:"7px 12px",cursor:"pointer",borderLeft:`3px solid ${sel2?.name===m.name&&sel2?.source===m.source?C.gold:"transparent"}`,background:sel2?.name===m.name&&sel2?.source===m.source?"rgba(200,149,42,0.08)":"transparent",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:7}}>
-          <span style={{fontSize:10,...cinzel,padding:"1px 5px",borderRadius:3,background:"#1a1208",border:`1px solid ${C.border}`,color:C.gold,flexShrink:0,minWidth:26,textAlign:"center"}}>{m.cr}</span>
-          <div style={{flex:1,minWidth:0}}>
-            <div style={{...cinzel,fontSize:12,color:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{m.name}</div>
-            <div style={{fontSize:10,color:C.dim,fontStyle:"italic"}}>{m.size} {m.type}</div>
-          </div>
-        </div>)}
-        {filtered.length===0&&<div style={{padding:"32px 12px",textAlign:"center",color:C.dim,fontSize:13}}>Geen monsters gevonden</div>}
-      </div>
-    </div>
-    {/* Detail */}
-    <div style={{flex:1,overflowY:"auto",padding:"20px 24px"}}>
-      {!sm?<Empty icon="📖" text="Selecteer een monster" sub="Zoek op naam, type of CR"/>:<>
-        <div style={{...cinzel,fontSize:22,color:C.gold,letterSpacing:"0.06em",marginBottom:2}}>{sm.name}</div>
-        <div style={{fontSize:13,color:C.muted,marginBottom:8,fontStyle:"italic"}}>{[sm.alignment,sm.size,sm.type].filter(Boolean).join(" ")}</div>
-        <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-          {[["CR",sm.cr,C.gold],["XP",sm.xp!=null?sm.xp.toLocaleString():null,C.muted],["Init",sign(sm.init),C.muted]].map(([l,v,col])=>v!=null&&<div key={l} style={{background:"#1e1508",border:`1px solid ${C.border}`,borderRadius:6,padding:"3px 10px",display:"flex",alignItems:"center",gap:6}}><span style={{fontSize:11,color:C.muted,textTransform:"uppercase",letterSpacing:"0.12em"}}>{l}</span><span style={{...cinzel,fontSize:15,color:col}}>{v}</span></div>)}
-        </div>
-        <button style={{...btn("green"),marginBottom:14,display:"flex",alignItems:"center",gap:8}} onClick={()=>addToTracker(sm)}>⚔️ Voeg toe aan Initiative Tracker</button>
-        {sm.desc&&<div style={{fontSize:13,color:"#8a7a5a",fontStyle:"italic",lineHeight:1.5,marginBottom:12,paddingBottom:12,borderBottom:`1px solid ${C.border}`}}>{sm.desc}</div>}
-        <div style={{...cinzel,fontSize:11,color:C.goldDim,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>Defensie</div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-          {[["AC",sm.ac],["Touch",sm.touch],["Flat-F",sm.ff],["HP",sm.hp]].map(([l,v])=><SB key={l} label={l} value={v}/>)}
-        </div>
-        {sm.hd&&<div style={{fontSize:11,color:C.dim,marginBottom:8}}>HD: {sm.hd}</div>}
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-          {sm.fort!=null&&<SB label="Fort" value={sign(sm.fort)}/>}
-          {sm.ref!=null&&<SB label="Ref" value={sign(sm.ref)}/>}
-          {sm.will!=null&&<SB label="Will" value={sign(sm.will)}/>}
-          {sm.sr&&<SB label="SR" value={sm.sr}/>}
-        </div>
-        {sm.immunities&&<div style={{marginBottom:6,fontSize:13}}><span style={{color:C.muted}}>Immuniteiten: </span>{sm.immunities}</div>}
-        {sm.resistances&&<div style={{marginBottom:6,fontSize:13}}><span style={{color:C.muted}}>Resistanties: </span>{sm.resistances}</div>}
-        <Divider/>
-        <div style={{...cinzel,fontSize:11,color:C.goldDim,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>Aanvallen</div>
-        {sm.speed&&<div style={{marginBottom:6,fontSize:13}}><span style={{color:C.muted}}>Snelheid: </span>{sm.speed}</div>}
-        {sm.attacks&&<div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"8px 12px",fontSize:12,fontFamily:"monospace",color:C.text,lineHeight:1.7,marginBottom:8}}>{sm.attacks.split("; ").map((a,i)=><div key={i}>{a}</div>)}</div>}
-        <Divider/>
-        <div style={{...cinzel,fontSize:11,color:C.goldDim,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>Eigenschappen</div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-          {[["STR",sm.str],["DEX",sm.dex],["CON",sm.con],["INT",sm.int],["WIS",sm.wis],["CHA",sm.cha]].map(([l,v])=><SB key={l} label={l} value={v??("—")} mod={v!=null?abMod(v):undefined}/>)}
-        </div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:8}}>
-          {sm.bab!=null&&<SB label="BAB" value={sign(sm.bab)}/>}
-          {sm.cmb!=null&&<SB label="CMB" value={sign(sm.cmb)}/>}
-          {sm.cmd!=null&&<SB label="CMD" value={sm.cmd}/>}
-        </div>
-        {(sm.senses||sm.languages||sm.feats||sm.skills||sm.sq)&&<><Divider/>
-          {[["Zintuigen",sm.senses],["Talen",sm.languages],["Feats",sm.feats],["Skills",sm.skills],["Bijzondere kwaliteiten",sm.sq]].map(([l,v])=>v?<div key={l} style={{marginBottom:6,fontSize:13}}><span style={{color:C.muted}}>{l}: </span>{v}</div>:null)}
-        </>}
-        {sm.special&&<><Divider/>
-          <div style={{...cinzel,fontSize:11,color:C.goldDim,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:6}}>Speciale Vaardigheden</div>
-          {sm.special.split("; ").map((sa,i)=><div key={i} style={{background:C.bg,border:"1px solid #2a1818",borderRadius:6,padding:"7px 11px",fontSize:12,color:"#9a8070",lineHeight:1.6,marginBottom:5}}>{sa}</div>)}
-        </>}
-        <Divider/>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          {sm.source&&<span style={{fontSize:11,color:C.dim,fontStyle:"italic"}}>Bron: {sm.source}</span>}
-          <a href={sm.url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"#4a6a8a",textDecoration:"none",marginLeft:8}}>🔗 Archives of Nethys ↗</a>
-        </div>
-      </>}
-    </div>
-  </div>;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// MODULE 3 — ENCOUNTER BUILDER
-// ═══════════════════════════════════════════════════════════════════════════════
-function MonsterSearch({onAdd}){
-  const [q,setQ]=useState(""); const [open,setOpen]=useState(false);
-  const ref=useRef(null); const monsters=window.MONSTERS||[];
-  const results=useMemo(()=>{if(q.length<2)return[];return monsters.filter(m=>m.name.toLowerCase().includes(q.toLowerCase())).slice(0,8);},[q]);
-  useEffect(()=>{setOpen(results.length>0);},[results]);
-  useEffect(()=>{function h(e){if(ref.current&&!ref.current.contains(e.target))setOpen(false);}document.addEventListener("mousedown",h);return()=>document.removeEventListener("mousedown",h);},[]);
-  return <div ref={ref} style={{position:"relative"}}>
-    <input style={inp({boxSizing:"border-box"})} placeholder="Zoek monster om toe te voegen..." value={q} onChange={e=>setQ(e.target.value)} onFocus={()=>results.length>0&&setOpen(true)}/>
-    {open&&<div style={{position:"absolute",top:"100%",left:0,right:0,background:"#0f1110",border:`1px solid ${C.goldDim}`,borderRadius:6,zIndex:50,maxHeight:240,overflowY:"auto",marginTop:3}}>
-      {results.map(m=><div key={m.name+(m.source||"")} style={{padding:"7px 12px",cursor:"pointer",display:"flex",alignItems:"center",gap:8,borderBottom:`1px solid ${C.border}`}} onMouseDown={()=>{onAdd(m);setQ("");setOpen(false);}}>
-        <span style={{fontSize:10,...cinzel,padding:"1px 5px",borderRadius:3,background:"#1a1208",border:`1px solid ${C.border}`,color:C.gold,minWidth:26,textAlign:"center"}}>{m.cr}</span>
-        <div><div style={{...cinzel,fontSize:12,color:C.text}}>{m.name}</div><div style={{fontSize:10,color:C.dim,fontStyle:"italic"}}>{m.size} {m.type} · {m.source}</div></div>
-      </div>)}
-    </div>}
-  </div>;
-}
-
-
-function ManualMonsterAdd({onAdd}){
-  const [open,setOpen]=useState(false);
-  const [mn,setMn]=useState("");
-  const [mcr,setMcr]=useState("1");
-  function submit(){
-    if(!mn.trim())return;
-    onAdd({name:mn.trim(),cr:mcr,hp:0,ac:0,init:0,con:10});
-    setMn(""); setOpen(false);
-  }
-  if(!open) return <button style={{...btn(),width:"100%",marginTop:6,fontSize:11}} onClick={()=>setOpen(true)}>+ Handmatig toevoegen</button>;
-  return <div style={{display:"flex",gap:6,marginTop:6,alignItems:"center"}}>
-    <input style={inp({flex:1,boxSizing:"border-box"})} placeholder="Naam..." value={mn}
-      onChange={e=>setMn(e.target.value)} onKeyDown={e=>e.key==="Enter"&&submit()}/>
-    <select style={sel({width:70})} value={mcr} onChange={e=>setMcr(e.target.value)}>
-      {CR_LIST.map(c=><option key={c} value={c}>CR {c}</option>)}
-    </select>
-    <button style={btn("gold")} onClick={submit}>+</button>
-    <button style={btn()} onClick={()=>{setOpen(false);setMn("");}}>✕</button>
-  </div>;
-}
-
-function EncounterBuilder({onToast}){
-  const SK="pf1e-enc-builder";
-  const [sessions,setSessions]=useState([]);
-  const [parties,setParties]=useState([]);
-  const [activeSessId,setActiveSessId]=useState(null);
-  const [activeEncId,setActiveEncId]=useState(null);
-  const [activePartyId,setActivePartyId]=useState(null);
-  const [rightTab,setRightTab]=useState("party");
-
-  useEffect(()=>{try{const d=localStorage.getItem(SK);if(d){const p=JSON.parse(d);setSessions(p.sessions||[]);setParties(p.parties||[]);setActiveSessId(p.activeSessId||null);setActiveEncId(p.activeEncId||null);setActivePartyId(p.activePartyId||null);}}catch{}},[]);
-  useEffect(()=>{try{localStorage.setItem(SK,JSON.stringify({sessions,parties,activeSessId,activeEncId,activePartyId}));}catch{}},[sessions,parties,activeSessId,activeEncId,activePartyId]);
-
-  function updSess(id,fn){setSessions(p=>p.map(s=>s.id===id?fn(s):s));}
-  function updParty(id,fn){setParties(p=>p.map(x=>x.id===id?fn(x):x));}
-  const activeSess=sessions.find(s=>s.id===activeSessId);
-  const activeEnc=activeSess?.encounters?.find(e=>e.id===activeEncId);
-  const activeParty=parties.find(p=>p.id===activePartyId);
-
-  function createSess(){const s={id:uid(),name:`Sessie ${sessions.length+1}`,date:new Date().toLocaleDateString("nl"),notes:"",encounters:[]};setSessions(p=>[s,...p]);setActiveSessId(s.id);setActiveEncId(null);}
-  function createEnc(){if(!activeSessId)return;const e={id:uid(),name:`Encounter ${((activeSess?.encounters||[]).length+1)}`,status:"Voorbereid",monsters:[],notes:"",loot:""};updSess(activeSessId,s=>({...s,encounters:[...(s.encounters||[]),e]}));setActiveEncId(e.id);}
-  function updEnc(upd){updSess(activeSessId,s=>({...s,encounters:s.encounters.map(e=>e.id===upd.id?upd:e)}));}
-  function delEnc(id){updSess(activeSessId,s=>({...s,encounters:s.encounters.filter(e=>e.id!==id)}));if(activeEncId===id)setActiveEncId(null);}
-  function dupEnc(id){const e=activeSess?.encounters?.find(x=>x.id===id);if(!e)return;const c={...e,id:uid(),name:e.name+" (kopie)",status:"Voorbereid"};updSess(activeSessId,s=>({...s,encounters:[...s.encounters,c]}));setActiveEncId(c.id);if(onToast)onToast("Encounter gedupliceerd");}
-  function createParty(){const p={id:uid(),name:`Party ${parties.length+1}`,members:[]};setParties(prev=>[...prev,p]);setActivePartyId(p.id);}
-  function sendToTracker(enc){
-    const coms=(enc.monsters||[]).flatMap(m=>Array.from({length:m.count||1},(_,i)=>({id:uid(),name:(m.count||1)>1?`${m.name} ${i+1}`:m.name,type:"Enemy",initBonus:m.init||0,initiative:0,hpMax:m.hp||0,hpCurrent:m.hp||0,ac:m.ac||10,conScore:m.con||10,conditions:[]})));
-    if(activeParty)activeParty.members.forEach(m=>coms.push({id:uid(),name:m.name||m.cls,type:"PC",initBonus:0,initiative:0,hpMax:0,hpCurrent:0,ac:10,conScore:10,conditions:[]}));
-    localStorage.setItem("pf1e-tracker-import",JSON.stringify({coms,ts:Date.now()}));
-    if(onToast)onToast(`${coms.length} deelnemers klaar voor Initiative Tracker ✓`);
-  }
-  function exportData(){const blob=new Blob([JSON.stringify({sessions,parties},null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="pf1e-encounters.json";a.click();URL.revokeObjectURL(url);}
-  function importData(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.sessions)setSessions(p=>[...p,...d.sessions]);if(d.parties)setParties(p=>[...p,...d.parties]);if(onToast)onToast("Data geïmporteerd ✓");}catch{if(onToast)onToast("Fout bij importeren","#e74c3c");}};r.readAsText(f);e.target.value="";}
-
-  const sessXP=activeSess?(activeSess.encounters||[]).reduce((s,e)=>s+adjXP(e.monsters||[]),0):0;
-
-  return <div style={{height:"100%",display:"flex",flexDirection:"column",overflow:"hidden"}}>
-    {/* Toolbar */}
-    <div style={{padding:"8px 16px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:8,alignItems:"center",background:C.bg,flexShrink:0}}>
-      <button style={btn("gold",{fontSize:11})} onClick={createSess}>+ Sessie</button>
-      <button style={btn("",{fontSize:11})} onClick={createEnc} disabled={!activeSessId}>+ Encounter</button>
-      <div style={{marginLeft:"auto",display:"flex",gap:6}}>
-        <button style={btn("blue",{fontSize:11})} onClick={exportData}>⬇ Export</button>
-        <label style={{...btn("",{}),fontSize:11,cursor:"pointer"}}>⬆ Import<input type="file" accept=".json" style={{display:"none"}} onChange={importData}/></label>
-      </div>
-    </div>
-    <div style={{flex:1,display:"flex",overflow:"hidden"}}>
-      {/* Col 1: Sessions */}
-      <div style={{width:180,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${C.border}`,background:"#0f1110",overflow:"hidden"}}>
-        <PanelHead title="Sessies"/>
-        <div style={{flex:1,overflowY:"auto",padding:6}}>
-          {sessions.length===0&&<div style={{padding:"20px 10px",textAlign:"center",color:C.dim,fontSize:12}}>Maak een sessie aan</div>}
-          {sessions.map(s=><div key={s.id} onClick={()=>{setActiveSessId(s.id);setActiveEncId(null);}} style={{padding:"8px 10px",borderRadius:6,marginBottom:4,cursor:"pointer",background:s.id===activeSessId?"rgba(200,149,42,0.08)":"transparent",border:`1px solid ${s.id===activeSessId?C.goldDim:C.border}`}}>
-            <div style={{...cinzel,fontSize:11,color:s.id===activeSessId?C.gold:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name}</div>
-            <div style={{fontSize:10,color:C.dim,marginTop:2}}>{s.date} · {(s.encounters||[]).length} enc.</div>
-            <button onClick={e=>{e.stopPropagation();if(window.confirm("Sessie verwijderen?"))setSessions(p=>p.filter(x=>x.id!==s.id));}} style={{...btn("red",{fontSize:9,padding:"1px 5px",marginTop:4})}}>✕</button>
-          </div>)}
-        </div>
-      </div>
-      {/* Col 2: Encounters */}
-      <div style={{width:210,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${C.border}`,background:"#0f1110",overflow:"hidden"}}>
-        <PanelHead title={activeSess?activeSess.name:"Encounters"}>
-          {activeSess&&<span style={{fontSize:10,color:C.dim,marginLeft:"auto"}}>{fmtXP(sessXP)} XP</span>}
-        </PanelHead>
-        <div style={{flex:1,overflowY:"auto",padding:6}}>
-          {!activeSess&&<div style={{padding:"20px 10px",textAlign:"center",color:C.dim,fontSize:12}}>Selecteer een sessie</div>}
-          {(activeSess?.encounters||[]).map(enc=>{
-            const ax=adjXP(enc.monsters||[]);
-            const df=getDiff(ax,activeParty);
-            const sc={"Voorbereid":"#4a9eff","Actief":"#f39c12","Voltooid":"#2ecc71","Overgeslagen":"#5a5a5a"}[enc.status]||"#888";
-            return <div key={enc.id} onClick={()=>setActiveEncId(enc.id)} style={{padding:"8px 10px",borderRadius:6,marginBottom:4,cursor:"pointer",background:enc.id===activeEncId?"rgba(200,149,42,0.08)":"transparent",border:`1px solid ${enc.id===activeEncId?C.goldDim:C.border}`}}>
-              <div style={{...cinzel,fontSize:11,color:enc.id===activeEncId?C.gold:C.text,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{enc.name}</div>
-              <div style={{display:"flex",gap:5,marginTop:3,alignItems:"center",flexWrap:"wrap"}}>
-                <span style={{fontSize:9,padding:"1px 5px",borderRadius:3,background:`${sc}18`,border:`1px solid ${sc}55`,color:sc}}>{enc.status}</span>
-                {df&&<span style={{fontSize:9,padding:"1px 5px",borderRadius:3,background:`${df.color}18`,border:`1px solid ${df.color}55`,color:df.color}}>{df.label}</span>}
-                {(enc.monsters||[]).length>0&&<span style={{fontSize:10,color:C.dim}}>{fmtXP(ax)} XP</span>}
-              </div>
-              <div style={{display:"flex",gap:3,marginTop:4}}>
-                <button onClick={e=>{e.stopPropagation();dupEnc(enc.id);}} style={btn("",{fontSize:9,padding:"1px 5px"})}>⎘</button>
-                <button onClick={e=>{e.stopPropagation();delEnc(enc.id);}} style={btn("red",{fontSize:9,padding:"1px 5px"})}>✕</button>
-              </div>
-            </div>;
-          })}
-        </div>
-      </div>
-      {/* Col 3: Encounter detail */}
-      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden",borderRight:`1px solid ${C.border}`}}>
-        {!activeEnc?<Empty icon="⚔️" text="Selecteer een encounter" sub="Of maak een nieuwe aan"/>:<>
-          <div style={{padding:"10px 14px",borderBottom:`1px solid ${C.border}`,background:"linear-gradient(90deg,#1a1208,#111310)",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-            <input style={{...inp(),fontFamily:"'Cinzel',serif",fontSize:15,color:C.gold,background:"transparent",border:"none",padding:"2px 0",flex:1}} value={activeEnc.name} onChange={e=>updEnc({...activeEnc,name:e.target.value})} placeholder="Encounter naam..."/>
-            <select style={sel({width:"auto",fontSize:11})} value={activeEnc.status||"Voorbereid"} onChange={e=>updEnc({...activeEnc,status:e.target.value})}>
-              {["Voorbereid","Actief","Voltooid","Overgeslagen"].map(s=><option key={s}>{s}</option>)}
-            </select>
-            <button style={btn("green",{fontSize:11})} onClick={()=>sendToTracker(activeEnc)}>▶ Naar Tracker</button>
-          </div>
-          <div style={{flex:1,overflowY:"auto",padding:"14px 16px"}}>
-            {/* XP summary */}
-            {activeParty&&(()=>{
-              const raw=calcRawXP(activeEnc.monsters||[]);
-              const ax=adjXP(activeEnc.monsters||[]);
-              const df=getDiff(ax,activeParty);
-              const thresh=getThresholds(activeParty);
-              const barMax=thresh?thresh[3]*1.2:Math.max(ax*2,1);
-              return <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:8,padding:"12px 14px",marginBottom:14}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-                  <div style={{flex:1}}>
-                    <div style={{fontSize:10,color:C.muted,textTransform:"uppercase",letterSpacing:"0.12em",marginBottom:2}}>Moeilijkheid</div>
-                    <div style={{display:"flex",alignItems:"baseline",gap:8}}>
-                      <span style={{...cinzel,fontSize:22,color:df?.color||C.dim}}>{df?.label||"—"}</span>
-                      {df&&<span style={{fontSize:12,color:C.muted}}>voor {activeParty.members.length}p (gem. lvl {partyAvgLevel(activeParty)})</span>}
-                    </div>
-                  </div>
-                  <div style={{textAlign:"right"}}>
-                    <div style={{fontSize:10,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em"}}>Gecorrigeerde XP</div>
-                    <div style={{...cinzel,fontSize:20,color:C.gold}}>{fmtXP(ax)}</div>
-                    <div style={{fontSize:10,color:C.dim}}>Basis: {fmtXP(raw)} × {raw>0?(ax/raw).toFixed(1):"—"}</div>
-                  </div>
-                </div>
-                <div style={{height:8,background:"#1a1a1a",borderRadius:4,position:"relative",overflow:"visible"}}>
-                  {thresh&&thresh.map((t,i)=><div key={i} style={{position:"absolute",left:`${Math.min(100,(t/barMax)*100)}%`,top:-2,height:12,width:1,background:`${DIFF_COLORS[i]}88`,zIndex:2}}/>)}
-                  <div style={{height:"100%",borderRadius:4,background:df?.color||"#3a3a3a",width:`${Math.min(100,(ax/barMax)*100)}%`,transition:"width 0.4s",minWidth:ax>0?4:0}}/>
-                </div>
-                {thresh&&<div style={{display:"flex",gap:10,marginTop:6,flexWrap:"wrap"}}>
-                  {DIFF_LABELS.map((l,i)=><div key={l} style={{fontSize:10,color:DIFF_COLORS[i]}}>{l}: {fmtXP(thresh[i])}</div>)}
-                </div>}
-              </div>;
-            })()}
-            {/* Monster list */}
-            <div style={{...cinzel,fontSize:11,color:C.gold,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:8}}>Monsters</div>
-            {(activeEnc.monsters||[]).length===0&&<div style={{textAlign:"center",padding:"16px",color:C.dim,fontSize:12,border:`1px dashed ${C.border}`,borderRadius:6,marginBottom:8}}>Geen monsters — voeg toe via zoekbalk</div>}
-            {(activeEnc.monsters||[]).map(m=><div key={m.id} className="fi" style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,marginBottom:5}}>
-              <span style={{fontSize:10,...cinzel,padding:"2px 6px",borderRadius:3,background:"#1a1208",border:`1px solid ${C.border}`,color:C.gold,minWidth:28,textAlign:"center"}}>{m.cr}</span>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{...cinzel,fontSize:12,color:C.text}}>{m.name}</div>
-                <div style={{fontSize:10,color:C.dim}}>{fmtXP(CR_XP[m.cr]||0)} XP elk · AC {m.ac||"?"} · HP {m.hp||"?"}</div>
-              </div>
-              <div style={{display:"flex",alignItems:"center",gap:4}}>
-                <button style={btn("",{padding:"2px 7px",fontSize:13})} onClick={()=>{const ms=(activeEnc.monsters||[]).map(x=>x.id===m.id?{...x,count:Math.max(1,(x.count||1)-1)}:x);updEnc({...activeEnc,monsters:ms});}}>−</button>
-                <span style={{...cinzel,fontSize:14,color:C.text,minWidth:20,textAlign:"center"}}>{m.count||1}</span>
-                <button style={btn("",{padding:"2px 7px",fontSize:13})} onClick={()=>{const ms=(activeEnc.monsters||[]).map(x=>x.id===m.id?{...x,count:(x.count||1)+1}:x);updEnc({...activeEnc,monsters:ms});}}>+</button>
-              </div>
-              <div style={{fontSize:11,color:C.muted,minWidth:40,textAlign:"right"}}>{fmtXP((CR_XP[m.cr]||0)*(m.count||1))}</div>
-              <button style={btn("red",{padding:"2px 6px",fontSize:11})} onClick={()=>updEnc({...activeEnc,monsters:(activeEnc.monsters||[]).filter(x=>x.id!==m.id)})}>✕</button>
-            </div>)}
-            {/* Add monster */}
-            <MonsterSearch onAdd={m=>{const ex=(activeEnc.monsters||[]).findIndex(x=>x.name===m.name&&x.cr===m.cr);if(ex>=0){const ms=[...(activeEnc.monsters||[])];ms[ex]={...ms[ex],count:(ms[ex].count||1)+1};updEnc({...activeEnc,monsters:ms});}else{updEnc({...activeEnc,monsters:[...(activeEnc.monsters||[]),{id:uid(),name:m.name,cr:m.cr,count:1,hp:m.hp,ac:m.ac,init:m.init,con:m.con}]});}}}/>
-            {/* Manual add */}
-            <ManualMonsterAdd onAdd={m=>updEnc({...activeEnc,monsters:[...(activeEnc.monsters||[]),{id:uid(),name:m.name,cr:m.cr,count:1,hp:m.hp||0,ac:m.ac||0,init:m.init||0,con:m.con||10}]})}/>
-            <Divider/>
-            <div style={{marginBottom:10}}><label style={lbl}>GM Notities</label><textarea style={{...inp(),minHeight:70,resize:"vertical",lineHeight:1.5}} value={activeEnc.notes||""} onChange={e=>updEnc({...activeEnc,notes:e.target.value})} placeholder="Locatie, triggers, tactiek..."/></div>
-            <div><label style={lbl}>Loot / Rewards</label><textarea style={{...inp(),minHeight:44,resize:"vertical",lineHeight:1.5}} value={activeEnc.loot||""} onChange={e=>updEnc({...activeEnc,loot:e.target.value})} placeholder="Gold, items, XP..."/></div>
-          </div>
-        </>}
-      </div>
-      {/* Col 4: Party + session */}
-      <div style={{width:260,flexShrink:0,display:"flex",flexDirection:"column",overflow:"hidden"}}>
-        <div style={{display:"flex",borderBottom:`1px solid ${C.border}`,flexShrink:0}}>
-          {[["party","👥 Party"],["session","📅 Sessie"]].map(([k,l])=><button key={k} style={{flex:1,padding:"8px",border:"none",borderBottom:`2px solid ${rightTab===k?C.gold:"transparent"}`,background:rightTab===k?"rgba(200,149,42,0.05)":"transparent",color:rightTab===k?C.gold:C.muted,cursor:"pointer",...cinzel,fontSize:11}} onClick={()=>setRightTab(k)}>{l}</button>)}
-        </div>
-        {rightTab==="party"&&<div style={{display:"flex",flexDirection:"column",flex:1,overflow:"hidden"}}>
-          <div style={{padding:"8px",borderBottom:`1px solid ${C.border}`,flexShrink:0,display:"flex",gap:6}}>
-            <select style={sel({flex:1})} value={activePartyId||""} onChange={e=>setActivePartyId(e.target.value)}>
-              <option value="">— Selecteer party —</option>
-              {parties.map(p=><option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <button style={btn("gold",{padding:"6px 10px",fontSize:11})} onClick={createParty}>+</button>
-          </div>
-          {activeParty&&<div style={{flex:1,overflowY:"auto",padding:"10px"}}>
-            <div style={{marginBottom:8}}><label style={lbl}>Party naam</label><input style={inp()} value={activeParty.name} onChange={e=>updParty(activeParty.id,p=>({...p,name:e.target.value}))}/></div>
-            <div style={{...cinzel,fontSize:11,color:C.gold,letterSpacing:"0.12em",textTransform:"uppercase",marginBottom:6}}>Leden</div>
-            {(activeParty.members||[]).map(m=><div key={m.id} style={{display:"grid",gridTemplateColumns:"1fr 36px 1fr auto",gap:4,marginBottom:5,alignItems:"center"}}>
-              <input style={inp({fontSize:12})} placeholder="Naam" value={m.name} onChange={e=>updParty(activeParty.id,p=>({...p,members:p.members.map(x=>x.id===m.id?{...x,name:e.target.value}:x)}))}/>
-              <input style={inp({fontSize:12,textAlign:"center",padding:"6px 4px"})} type="number" min="1" max="20" value={m.level} onChange={e=>updParty(activeParty.id,p=>({...p,members:p.members.map(x=>x.id===m.id?{...x,level:parseInt(e.target.value)||1}:x)}))}/>
-              <select style={sel({fontSize:11})} value={m.cls} onChange={e=>updParty(activeParty.id,p=>({...p,members:p.members.map(x=>x.id===m.id?{...x,cls:e.target.value}:x)}))}>
-                {PF1_CLASSES.map(c=><option key={c}>{c}</option>)}
-              </select>
-              <button style={btn("red",{padding:"2px 6px",fontSize:11})} onClick={()=>updParty(activeParty.id,p=>({...p,members:p.members.filter(x=>x.id!==m.id)}))}>✕</button>
-            </div>)}
-            <button style={{...btn("green"),width:"100%",marginTop:4,fontSize:11}} onClick={()=>updParty(activeParty.id,p=>({...p,members:[...(p.members||[]),{id:uid(),name:"",level:1,cls:"Fighter"}]}))}>+ Lid toevoegen</button>
-            {(activeParty.members||[]).length>0&&<div style={{marginTop:8,padding:"8px 10px",background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,fontSize:11,color:C.muted}}>
-              {activeParty.members.length} spelers · Gem. level {(activeParty.members.reduce((s,m)=>s+(m.level||1),0)/activeParty.members.length).toFixed(1)}
-            </div>}
-            <button style={{...btn("red"),width:"100%",marginTop:8,fontSize:10}} onClick={()=>{if(window.confirm("Party verwijderen?"))setParties(p=>p.filter(x=>x.id!==activeParty.id));setActivePartyId(null);}}>Party verwijderen</button>
-          </div>}
-        </div>}
-        {rightTab==="session"&&<div style={{flex:1,overflowY:"auto",padding:"12px"}}>
-          {!activeSess?<div style={{color:C.dim,fontSize:12,textAlign:"center",marginTop:20}}>Selecteer een sessie</div>:<>
-            <div style={{marginBottom:10}}><label style={lbl}>Sessie naam</label><input style={inp()} value={activeSess.name} onChange={e=>updSess(activeSessId,s=>({...s,name:e.target.value}))}/></div>
-            <div style={{marginBottom:10}}><label style={lbl}>Datum</label><input style={inp()} type="date" value={activeSess.date||""} onChange={e=>updSess(activeSessId,s=>({...s,date:e.target.value}))}/></div>
-            <div style={{marginBottom:10}}><label style={lbl}>Sessie notities</label><textarea style={{...inp(),minHeight:80,resize:"vertical",lineHeight:1.5}} value={activeSess.notes||""} onChange={e=>updSess(activeSessId,s=>({...s,notes:e.target.value}))} placeholder="Verhaallijnen, hooks, recap..."/></div>
-            <div style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:6,padding:"10px 12px",fontSize:12}}>
-              <div style={{...cinzel,fontSize:11,color:C.gold,letterSpacing:"0.1em",marginBottom:8}}>SESSIE OVERZICHT</div>
-              {(activeSess.encounters||[]).map(enc=>{const ax=adjXP(enc.monsters||[]);const df=getDiff(ax,activeParty);const sc={"Voorbereid":"#4a9eff","Actief":"#f39c12","Voltooid":"#2ecc71","Overgeslagen":"#5a5a5a"}[enc.status]||"#888";return<div key={enc.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"4px 0",borderBottom:`1px solid ${C.border}`}}>
-                <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <span style={{width:6,height:6,borderRadius:"50%",background:sc,display:"inline-block"}}/>
-                  <span style={{fontSize:11,color:C.text,maxWidth:110,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{enc.name}</span>
-                </div>
-                <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                  {df&&<span style={{fontSize:9,color:df.color}}>{df.label}</span>}
-                  <span style={{fontSize:11,color:C.muted}}>{fmtXP(ax)}</span>
-                </div>
-              </div>;})}
-              <div style={{display:"flex",justifyContent:"space-between",marginTop:8,...cinzel,fontSize:12}}>
-                <span style={{color:C.muted}}>Totaal XP</span>
-                <span style={{color:C.gold}}>{fmtXP(sessXP)}</span>
-              </div>
-              {activeParty&&activeParty.members.length>0&&<div style={{display:"flex",justifyContent:"space-between",marginTop:4,fontSize:11}}>
-                <span style={{color:C.dim}}>Per speler</span>
-                <span style={{color:C.muted}}>{fmtXP(Math.round(sessXP/activeParty.members.length))}</span>
-              </div>}
-            </div>
-          </>}
-        </div>}
-      </div>
-    </div>
-  </div>;
-}
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// MODULE 4 — NPC TRACKER
-// ═══════════════════════════════════════════════════════════════════════════════
-function NpcCard({n, selId, setSelId, delNpc}){
-  const sc=NPC_STAT_C[n.status]||"#888"; const rc=NPC_REL_C[n.relation]||"#888";
-  const dead=n.status==="Dood";
-  return <div onClick={()=>setSelId(n.id)} style={{padding:"8px 12px",cursor:"pointer",borderLeft:`3px solid ${selId===n.id?C.gold:"transparent"}`,borderBottom:`1px solid ${C.border}`,background:selId===n.id?"rgba(200,149,42,0.08)":"transparent",opacity:dead?0.55:1}}>
-    <div style={{display:"flex",alignItems:"flex-start",gap:6}}>
-      <div style={{width:8,height:8,borderRadius:"50%",background:sc,flexShrink:0,marginTop:4}}/>
-      <div style={{flex:1,minWidth:0}}>
-        <div style={{display:"flex",alignItems:"center",gap:6,flexWrap:"wrap"}}>
-          <span style={{...cinzel,fontSize:12,color:selId===n.id?C.gold:C.text,textDecoration:dead?"line-through":"none",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",maxWidth:130}}>
-            {n.name||<em style={{color:C.dim}}>Naamloze NPC</em>}
-          </span>
-          <span style={{fontSize:9,padding:"1px 5px",borderRadius:3,background:`${rc}18`,border:`1px solid ${rc}55`,color:rc}}>{n.relation}</span>
-        </div>
-        <div style={{fontSize:10,color:C.dim,marginTop:2,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>
-          {[n.race,n.role].filter(Boolean).join(" · ")}
-          {n.location&&<span style={{color:"#4a3a28"}}> @ {n.location}</span>}
-        </div>
-        {n.tags.length>0&&<div style={{marginTop:3}}>
-          {n.tags.slice(0,3).map(t=><span key={t} style={{display:"inline-block",padding:"1px 6px",borderRadius:10,fontSize:10,background:"#1e1a10",border:`1px solid ${C.border}`,color:"#8a7050",marginRight:3}}>{t}</span>)}
-          {n.tags.length>3&&<span style={{fontSize:9,color:C.dim}}>+{n.tags.length-3}</span>}
-        </div>}
-      </div>
-      <button onClick={e=>{e.stopPropagation();delNpc(n.id);}} style={{background:"transparent",border:"none",color:"#4a2020",cursor:"pointer",fontSize:13,padding:"0 2px",flexShrink:0}}>✕</button>
-    </div>
-  </div>;
-}
-function NpcTracker(){
-  const SK="pf1e-npc-tracker";
-  const [npcs,setNpcs]=useState([]);
-  const [selId,setSelId]=useState(null);
-  const [search,setSearch]=useState("");
-  const [fRel,setFRel]=useState(""); const [fStat,setFStat]=useState(""); const [fLoc,setFLoc]=useState("");
-  const [sortBy,setSortBy]=useState("name");
-  const [viewMode,setViewMode]=useState("list");
-  const [tagInput,setTagInput]=useState("");
-
-  useEffect(()=>{try{const d=localStorage.getItem(SK);if(d)setNpcs(JSON.parse(d));}catch{}},[]);
-  useEffect(()=>{try{localStorage.setItem(SK,JSON.stringify(npcs));}catch{}},[npcs]);
-
-  function newNpc(){const n={id:uid(),name:"",race:"",role:"",location:"",status:"Levend",relation:"Onbekend",tags:[],gmNotes:"",partyKnows:"",cr:"",createdAt:Date.now()};setNpcs(p=>[n,...p]);setSelId(n.id);}
-  function updNpc(upd){setNpcs(p=>p.map(n=>n.id===upd.id?upd:n));}
-  function delNpc(id){setNpcs(p=>p.filter(n=>n.id!==id));if(selId===id)setSelId(null);}
-  function dupNpc(id){const src=npcs.find(n=>n.id===id);if(!src)return;const c={...src,id:uid(),name:src.name+" (kopie)",createdAt:Date.now()};setNpcs(p=>[c,...p]);setSelId(c.id);}
-
-  const locations=[...new Set(npcs.map(n=>n.location).filter(Boolean))].sort();
-  const filtered=useMemo(()=>{const q=search.toLowerCase();return npcs.filter(n=>{
-    if(q&&!n.name.toLowerCase().includes(q)&&!n.role.toLowerCase().includes(q)&&!n.location.toLowerCase().includes(q)&&!n.tags.some(t=>t.includes(q)))return false;
-    if(fRel&&n.relation!==fRel)return false;
-    if(fStat&&n.status!==fStat)return false;
-    if(fLoc&&n.location!==fLoc)return false;
-    return true;
-  }).sort((a,b)=>{
-    if(sortBy==="name")return(a.name||"").localeCompare(b.name||"");
-    if(sortBy==="status")return a.status.localeCompare(b.status);
-    if(sortBy==="relation")return a.relation.localeCompare(b.relation);
-    if(sortBy==="location")return(a.location||"").localeCompare(b.location||"");
-    return b.createdAt-a.createdAt;
-  });},[npcs,search,fRel,fStat,fLoc,sortBy]);
-
-  const byLoc=useMemo(()=>{const m={};filtered.forEach(n=>{const l=n.location||"— Onbekend —";if(!m[l])m[l]=[];m[l].push(n);});return m;},[filtered]);
-  const sel=npcs.find(n=>n.id===selId)||null;
-
-  function exportNpcs(){const blob=new Blob([JSON.stringify(npcs,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="pf1e-npcs.json";a.click();URL.revokeObjectURL(url);}
-  function importNpcs(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(Array.isArray(d))setNpcs(p=>[...p,...d]);}catch{}};r.readAsText(f);e.target.value="";}
-
-
-
-  return <div style={{height:"100%",display:"flex",overflow:"hidden"}}>
-    {/* Left list */}
-    <div style={{width:290,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${C.border}`,background:"#0f1110",overflow:"hidden"}}>
-      <div style={{padding:"10px 12px",borderBottom:`1px solid ${C.border}`}}>
-        <input style={inp({boxSizing:"border-box",fontSize:13})} placeholder="Zoek NPC, rol, locatie, tag..." value={search} onChange={e=>setSearch(e.target.value)}/>
-      </div>
-      <div style={{padding:"6px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:5,flexWrap:"wrap"}}>
-        <select style={sel({flex:1,minWidth:70,fontSize:10,padding:"4px 6px"})} value={fRel} onChange={e=>setFRel(e.target.value)}><option value="">Relatie</option>{NPC_RELS.map(r=><option key={r}>{r}</option>)}</select>
-        <select style={sel({flex:1,minWidth:70,fontSize:10,padding:"4px 6px"})} value={fStat} onChange={e=>setFStat(e.target.value)}><option value="">Status</option>{NPC_STATUSES.map(s=><option key={s}>{s}</option>)}</select>
-        <select style={sel({flex:1,minWidth:80,fontSize:10,padding:"4px 6px"})} value={fLoc} onChange={e=>setFLoc(e.target.value)}><option value="">Locatie</option>{locations.map(l=><option key={l}>{l}</option>)}</select>
-      </div>
-      <div style={{padding:"5px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:5}}>
-        <span style={{fontSize:10,color:C.dim,flex:1}}>{filtered.length} NPC's</span>
-        <button onClick={()=>setViewMode(v=>v==="list"?"location":"list")} style={btn("",{fontSize:10,padding:"3px 8px"})}>{viewMode==="list"?"📍 Locatie":"📋 Lijst"}</button>
-        <select style={sel({fontSize:10,padding:"3px 6px",width:"auto"})} value={sortBy} onChange={e=>setSortBy(e.target.value)}>
-          <option value="name">Naam</option><option value="recent">Recent</option>
-          <option value="status">Status</option><option value="relation">Relatie</option><option value="location">Locatie</option>
-        </select>
-      </div>
-      <div style={{flex:1,overflowY:"auto"}}>
-        {filtered.length===0&&<div style={{padding:"30px 14px",textAlign:"center",color:C.dim,fontSize:12}}>{npcs.length===0?"Geen NPC's — maak er een aan":"Geen resultaten"}</div>}
-        {viewMode==="list"&&filtered.map(n=><NpcCard key={n.id} n={n} selId={selId} setSelId={setSelId} delNpc={delNpc}/>)}
-        {viewMode==="location"&&Object.entries(byLoc).map(([loc,list])=><div key={loc}>
-          <div style={{padding:"5px 12px",background:C.bg,borderBottom:`1px solid ${C.border}`,borderTop:`1px solid ${C.border}`,fontSize:10,color:C.gold,letterSpacing:"0.12em",...cinzel,textTransform:"uppercase",display:"flex",alignItems:"center",gap:6}}>
-            📍{loc}<span style={{color:C.dim,marginLeft:"auto"}}>{list.length}</span>
-          </div>
-          {list.map(n=><NpcCard key={n.id} n={n} selId={selId} setSelId={setSelId} delNpc={delNpc}/>)}
-        </div>)}
-      </div>
-      <div style={{padding:"8px 10px",borderTop:`1px solid ${C.border}`,display:"flex",gap:5}}>
-        <button onClick={newNpc} style={{...btn("gold"),flex:1,fontSize:11}}>+ Nieuwe NPC</button>
-        <button onClick={exportNpcs} style={btn("",{padding:"7px 10px",fontSize:10})}>⬇</button>
-        <label style={{...btn(),padding:"7px 10px",fontSize:10,cursor:"pointer"}}>⬆<input type="file" accept=".json" style={{display:"none"}} onChange={importNpcs}/></label>
-      </div>
-    </div>
-    {/* Right detail */}
-    <div style={{flex:1,overflow:"hidden",display:"flex",flexDirection:"column"}}>
-      {!sel?<Empty icon="🎭" text="Selecteer een NPC" sub="Of maak een nieuwe aan">
-        <button onClick={newNpc} style={{...btn("gold"),marginTop:16,fontSize:12}}>+ Eerste NPC aanmaken</button>
-      </Empty>:<>
-        {/* Header */}
-        <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,background:"linear-gradient(90deg,#1a1208,#111310)",flexShrink:0,display:"flex",alignItems:"center",gap:10}}>
-          <input style={{...inp(),fontFamily:"'Cinzel',serif",fontSize:17,color:C.gold,background:"transparent",border:"none",padding:"2px 0",flex:1}} value={sel.name} onChange={e=>updNpc({...sel,name:e.target.value})} placeholder="NPC naam..."/>
-          <select value={sel.status} onChange={e=>updNpc({...sel,status:e.target.value})} style={sel({width:"auto",fontSize:11,color:NPC_STAT_C[sel.status],border:`1px solid ${NPC_STAT_C[sel.status]}44`})}>{NPC_STATUSES.map(s=><option key={s}>{s}</option>)}</select>
-          <select value={sel.relation} onChange={e=>updNpc({...sel,relation:e.target.value})} style={sel({width:"auto",fontSize:11,color:NPC_REL_C[sel.relation],border:`1px solid ${NPC_REL_C[sel.relation]}44`})}>{NPC_RELS.map(r=><option key={r}>{r}</option>)}</select>
-        </div>
-        <div style={{flex:1,overflowY:"auto",padding:"14px 16px"}}>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-            <div><label style={lbl}>Ras / Type</label><input style={inp()} value={sel.race} onChange={e=>updNpc({...sel,race:e.target.value})} placeholder="Menselijk, Elf..."/></div>
-            <div><label style={lbl}>Rol / Functie</label><input style={inp()} value={sel.role} onChange={e=>updNpc({...sel,role:e.target.value})} placeholder="Guard, Herbergier..."/></div>
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 80px",gap:8,marginBottom:10}}>
-            <div><label style={lbl}>Locatie</label><input style={inp()} value={sel.location} onChange={e=>updNpc({...sel,location:e.target.value})} placeholder="Tavern, Dungeon..."/></div>
-            <div><label style={lbl}>CR</label><input style={inp()} value={sel.cr} onChange={e=>updNpc({...sel,cr:e.target.value})} placeholder="1/2, 3..."/></div>
-          </div>
-          {/* Tags */}
-          <div style={{marginBottom:10}}>
-            <label style={lbl}>Tags</label>
-            <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:5}}>
-              {sel.tags.map(t=><span key={t} style={{display:"inline-flex",alignItems:"center",gap:3,padding:"1px 7px",borderRadius:10,fontSize:10,background:"#1e1a10",border:`1px solid ${C.border}`,color:"#8a7050"}}>
-                {t}<span style={{cursor:"pointer",opacity:0.6,fontSize:11}} onClick={()=>updNpc({...sel,tags:sel.tags.filter(x=>x!==t)})}>×</span>
-              </span>)}
-            </div>
-            <div style={{display:"flex",flexWrap:"wrap",gap:3,marginBottom:5}}>
-              {NPC_TAGS_PRE.filter(t=>!sel.tags.includes(t)).map(t=><span key={t} onClick={()=>{if(!sel.tags.includes(t))updNpc({...sel,tags:[...sel.tags,t]});}} style={{fontSize:10,padding:"1px 6px",borderRadius:10,cursor:"pointer",background:C.bg,border:`1px solid ${C.border}`,color:C.dim}}>+ {t}</span>)}
-            </div>
-            <div style={{display:"flex",gap:5}}>
-              <input style={inp({flex:1,fontSize:12,boxSizing:"border-box"})} placeholder="Eigen tag..." value={tagInput} onChange={e=>setTagInput(e.target.value)} onKeyDown={e=>{if(e.key==="Enter"){const t=tagInput.trim().toLowerCase();if(t&&!sel.tags.includes(t))updNpc({...sel,tags:[...sel.tags,t]});setTagInput("");}}}/>
-              <button onClick={()=>{const t=tagInput.trim().toLowerCase();if(t&&!sel.tags.includes(t))updNpc({...sel,tags:[...sel.tags,t]});setTagInput("");}} style={btn("",{padding:"6px 12px",fontSize:12})}>+</button>
-            </div>
-          </div>
-          <Divider/>
-          <div style={{marginBottom:10}}><label style={lbl}>🔒 GM Notities</label><textarea style={{...inp(),minHeight:80,resize:"vertical",lineHeight:1.5}} value={sel.gmNotes} onChange={e=>updNpc({...sel,gmNotes:e.target.value})} placeholder="Geheimen, motivaties, stats, plannen..."/></div>
-          <div><label style={lbl}>👥 Wat de party weet</label><textarea style={{...inp(),minHeight:60,resize:"vertical",lineHeight:1.5}} value={sel.partyKnows} onChange={e=>updNpc({...sel,partyKnows:e.target.value})} placeholder="Naam, verschijning, bekende info..."/></div>
-        </div>
-        {/* Status quick-bar */}
-        <div style={{borderTop:`1px solid ${C.border}`,padding:"8px 16px",display:"flex",gap:6,flexShrink:0,background:C.bg,flexWrap:"wrap"}}>
-          {NPC_STATUSES.map(s=><button key={s} onClick={()=>updNpc({...sel,status:s})} style={{padding:"4px 10px",borderRadius:5,fontSize:10,cursor:"pointer",...cinzel,letterSpacing:"0.05em",background:sel.status===s?`${NPC_STAT_C[s]}22`:"transparent",border:`1px solid ${sel.status===s?NPC_STAT_C[s]+"66":C.border}`,color:sel.status===s?NPC_STAT_C[s]:C.dim}}>{s}</button>)}
-          <button onClick={()=>dupNpc(sel.id)} style={{...btn("",{fontSize:10,padding:"4px 10px"}),marginLeft:"auto"}}>⎘ Dupliceer</button>
-        </div>
-      </>}
-    </div>
-  </div>;
-}
-
-
-// ═══════════════════════════════════════════════════════════════════════════════
-// ROOT APP — Workflow sidebar layout
-// ═══════════════════════════════════════════════════════════════════════════════
-
-// Help texts per module
-const HELP = {
-  party: {
-    title: "Party instellen",
-    text: "Maak één of meerdere parties aan. Voeg leden toe met naam, level en klasse. De Encounter Builder gebruikt deze info automatisch voor de moeilijkheidsberekening."
-  },
-  encounters: {
-    title: "Encounters bouwen",
-    text: "Maak encounters aan per sessie. Voeg monsters toe via de zoekbalk (alle 3.655 AoN-monsters) of handmatig. De XP-balk toont Easy/Medium/Hard/Epic op basis van je party. Gebruik '▶ Naar Tracker' om een encounter te starten."
-  },
-  npcs: {
-    title: "NPC Tracker",
-    text: "Leg NPCs vast met naam, rol, locatie en relatie tot de party. Gebruik 'GM Notities' voor info die spelers niet weten. 'Wat de party weet' kun je eventueel hardop voorlezen. Status (Levend/Dood/Gevlucht) snel aanpassen via de knoppen onderaan."
-  },
-  initiative: {
-    title: "Initiative Tracker",
-    text: "Voeg deelnemers toe met naam, init bonus, HP en AC. Klik 'Roll All' voor initiatives, dan 'Start Combat'. Klik op het initiatiefgetal om het aan te passen. Schade en healing invoeren via de velden — druk Enter of klik de knop. Condities toevoegen via '▼ cond'."
-  },
-  monsters: {
-    title: "Monster Quickview",
-    text: "Zoek op naam of type. Filter op CR, creature type of grootte. Klik een monster voor het volledige statblock. Gebruik '⚔️ Voeg toe aan Initiative Tracker' om direct toe te voegen aan de actieve combat."
-  },
-};
-
-// Workflow steps definition
-const WORKFLOW = {
-  prep: [
-    { key:"party",      icon:"👥", label:"Party",      sub:"Spelers & levels",      module:"encounters" },
-    { key:"session",    icon:"📅", label:"Sessie",     sub:"Datum & notities",      module:"encounters" },
-    { key:"encounters", icon:"🗺️", label:"Encounters", sub:"Monsters & XP balans",  module:"encounters" },
-    { key:"npcs",       icon:"🎭", label:"NPCs",       sub:"Personages voorbereiden",module:"npcs"       },
-  ],
-  play: [
-    { key:"initiative", icon:"⚔️", label:"Combat",     sub:"Initiative & HP",       module:"initiative" },
-    { key:"monsters",   icon:"📖", label:"Monsters",   sub:"Statblocks opzoeken",   module:"monsters"   },
-    { key:"npcs-play",  icon:"🎭", label:"NPCs",       sub:"Status bijhouden",      module:"npcs"       },
-  ],
-};
-
-function HelpModal({helpKey, onClose}){
-  const h = HELP[helpKey];
-  if(!h) return null;
-  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
-    <div style={{background:"#141210",border:`1px solid ${C.goldDim}`,borderRadius:12,padding:"24px 28px",maxWidth:420,width:"90%",boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}} onClick={e=>e.stopPropagation()}>
-      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
-        <span style={{fontSize:20}}>💡</span>
-        <div style={{...cinzel,fontSize:15,color:C.gold,letterSpacing:"0.08em"}}>{h.title}</div>
-        <button onClick={onClose} style={{marginLeft:"auto",background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:18}}>✕</button>
-      </div>
-      <div style={{fontSize:14,color:C.text,lineHeight:1.7,fontFamily:"'Crimson Text',Georgia,serif"}}>{h.text}</div>
-      <button onClick={onClose} style={{...btn("gold"),marginTop:16,width:"100%"}}>Begrepen</button>
-    </div>
-  </div>;
-}
-
-function Tooltip({text,children}){
-  const [show,setShow]=useState(false);
-  return <div style={{position:"relative",display:"inline-flex"}} onMouseEnter={()=>setShow(true)} onMouseLeave={()=>setShow(false)}>
-    {children}
-    {show&&<div style={{position:"absolute",bottom:"calc(100% + 6px)",left:"50%",transform:"translateX(-50%)",background:"#1a1208",border:`1px solid ${C.goldDim}`,borderRadius:6,padding:"6px 10px",fontSize:11,color:C.text,whiteSpace:"nowrap",zIndex:100,pointerEvents:"none",boxShadow:"0 4px 12px rgba(0,0,0,0.6)",maxWidth:220,whiteSpace:"normal",textAlign:"center",lineHeight:1.4}}>
-      {text}
-    </div>}
-  </div>;
-}
-
-function App(){
-  const [activeModule, setActiveModule] = useState(()=>localStorage.getItem("pf1e-active-tab")||"initiative");
-  const [mode, setMode]   = useState(()=>localStorage.getItem("pf1e-mode")||"prep");
-  const [helpKey, setHelpKey] = useState(null);
-  const [toast, setToast] = useState(null);
-
-  useEffect(()=>{localStorage.setItem("pf1e-active-tab",activeModule);},[activeModule]);
-  useEffect(()=>{localStorage.setItem("pf1e-mode",mode);},[mode]);
-
-  function showToast(msg,color="#2ecc71"){setToast({msg,color});setTimeout(()=>setToast(null),2800);}
-
-  function addToTracker(comData){
-    const existing=JSON.parse(localStorage.getItem("pf1e-gm-initiative")||'{"coms":[]}');
-    existing.coms=[...(existing.coms||[]),comData];
-    localStorage.setItem("pf1e-gm-initiative",JSON.stringify(existing));
-    localStorage.setItem("pf1e-tracker-import",JSON.stringify({coms:[comData],ts:Date.now()}));
-    setActiveModule("initiative");
-    showToast(`${comData.name} toegevoegd aan tracker`);
-  }
-
-  const monsters = window.MONSTERS||[];
-  const steps = WORKFLOW[mode];
-  // Which step is active?
-  const activeStep = steps.find(s=>s.module===activeModule||(s.key===activeModule));
-
-  // Determine help key for current module
-  const moduleHelpKey = activeModule;
-
-  return <div style={{height:"100vh",display:"flex",flexDirection:"column",fontFamily:"'Crimson Text',Georgia,serif",color:C.text,background:C.bg,overflow:"hidden"}}>
-
-    {/* Help modal */}
-    {helpKey && <HelpModal helpKey={helpKey} onClose={()=>setHelpKey(null)}/>}
-
-    {/* Toast */}
-    {toast&&<div style={{position:"fixed",top:14,right:14,background:"#1a1a1a",border:`1px solid ${toast.color}`,borderRadius:8,padding:"9px 16px",fontSize:13,color:toast.color,zIndex:1000,...cinzel,letterSpacing:"0.06em",boxShadow:"0 4px 20px rgba(0,0,0,0.6)"}}>{toast.msg}</div>}
-
-    {/* Top bar */}
-    <div style={{background:"linear-gradient(135deg,#1a0e05,#0d0f0e)",borderBottom:`1px solid ${C.border}`,padding:"0 16px",display:"flex",alignItems:"stretch",flexShrink:0,height:46,gap:8}}>
-      {/* Logo */}
-      <div style={{display:"flex",alignItems:"center",gap:8,paddingRight:16,borderRight:`1px solid ${C.border}`}}>
-        <span style={{fontSize:16}}>⚔️</span>
-        <div>
-          <div style={{...cinzel,fontSize:14,fontWeight:700,color:C.gold,letterSpacing:"0.08em",lineHeight:1}}>GM COMMAND</div>
-          <div style={{fontSize:9,color:C.muted,letterSpacing:"0.15em",textTransform:"uppercase"}}>Pathfinder 1e</div>
-        </div>
-      </div>
-
-      {/* Mode switcher */}
-      <div style={{display:"flex",alignItems:"center",gap:0,padding:"8px 0"}}>
-        {[["prep","📋 Voorbereiding"],["play","🎲 Spelen"]].map(([m,l])=>(
-          <button key={m} onClick={()=>setMode(m)} style={{
-            padding:"5px 14px",border:"1px solid",borderRadius:m==="prep"?"6px 0 0 6px":"0 6px 6px 0",
-            fontSize:11,...cinzel,letterSpacing:"0.06em",cursor:"pointer",transition:"all 0.15s",
-            background:mode===m?"rgba(200,149,42,0.15)":"transparent",
-            borderColor:mode===m?C.goldDim:C.border,
-            color:mode===m?C.gold:C.muted,
-          }}>{l}</button>
-        ))}
-      </div>
-
-      {/* Context hint */}
-      <div style={{display:"flex",alignItems:"center",marginLeft:8}}>
-        {mode==="prep"
-          ? <span style={{fontSize:11,color:C.muted,fontStyle:"italic"}}>Bereid je sessie voor: party → sessie → encounters → NPCs</span>
-          : <span style={{fontSize:11,color:"#7ab87a",fontStyle:"italic"}}>Je bent aan het spelen — combat, monsters opzoeken, NPCs bijhouden</span>
-        }
-      </div>
-
-      {/* Right: help + AoN */}
-      <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:10}}>
-        <Tooltip text={`Uitleg over ${activeModule==="initiative"?"Initiative Tracker":activeModule==="monsters"?"Monster Quickview":activeModule==="encounters"?"Encounter Builder":"NPC Tracker"}`}>
-          <button onClick={()=>setHelpKey(moduleHelpKey)} style={{...btn("",{fontSize:11,padding:"4px 10px"})}}>? Help</button>
-        </Tooltip>
-        <a href="https://aonprd.com" target="_blank" rel="noopener noreferrer" style={{fontSize:10,color:"#4a6a8a",textDecoration:"none",letterSpacing:"0.1em"}}>AoN ↗</a>
-      </div>
-    </div>
-
-    {/* Body: sidebar + content */}
-    <div style={{flex:1,display:"flex",overflow:"hidden"}}>
-
-      {/* Sidebar */}
-      <div style={{width:168,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${C.border}`,background:"#0c0e0d",overflow:"hidden"}}>
-
-        {/* Section label */}
-        <div style={{padding:"10px 12px 6px",borderBottom:`1px solid ${C.border}`}}>
-          <div style={{fontSize:9,color:C.muted,letterSpacing:"0.2em",textTransform:"uppercase",...cinzel}}>
-            {mode==="prep"?"Voorbereiding":"Tijdens het Spel"}
-          </div>
-        </div>
-
-        {/* Steps */}
-        <div style={{flex:1,overflowY:"auto",padding:"6px 0"}}>
-          {steps.map((step,i)=>{
-            const isActive = step.module===activeModule || (step.key==="npcs-play"&&activeModule==="npcs");
-            return <button key={step.key} onClick={()=>setActiveModule(step.module)} style={{
-              width:"100%",textAlign:"left",padding:"10px 12px",
-              background:isActive?"rgba(200,149,42,0.1)":"transparent",
-              borderLeft:`3px solid ${isActive?C.gold:"transparent"}`,
-              border:"none",borderLeft:`3px solid ${isActive?C.gold:"transparent"}`,
-              cursor:"pointer",transition:"all 0.15s",
-              display:"flex",alignItems:"flex-start",gap:9,
-            }}>
-              <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0,marginTop:1}}>
-                <div style={{width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,background:isActive?C.gold:"#1e1a10",color:isActive?"#0d0f0e":C.muted,...cinzel,fontWeight:700,flexShrink:0}}>
-                  {i+1}
-                </div>
-                {i<steps.length-1&&<div style={{width:1,height:12,background:C.border,marginTop:3}}/>}
-              </div>
-              <div style={{minWidth:0,flex:1}}>
-                <div style={{fontSize:11,...cinzel,letterSpacing:"0.05em",color:isActive?C.gold:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{step.icon} {step.label}</div>
-                <div style={{fontSize:10,color:isActive?C.muted:C.dim,marginTop:1,lineHeight:1.3,whiteSpace:"normal"}}>{step.sub}</div>
-              </div>
-            </button>;
-          })}
-        </div>
-
-        {/* Bottom: mode switch hint */}
-        <div style={{padding:"10px 12px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
-          {mode==="prep"
-            ? <button onClick={()=>{setMode("play");setActiveModule("initiative");}} style={{...btn("green",{width:"100%",fontSize:10,padding:"7px 8px"})}}>🎲 Start sessie →</button>
-            : <button onClick={()=>{setMode("prep");setActiveModule("encounters");}} style={{...btn("",{width:"100%",fontSize:10,padding:"7px 8px"})}}>← Terug naar Prep</button>
-          }
-        </div>
-      </div>
-
-      {/* Main content */}
-      <div style={{flex:1,overflow:"hidden",position:"relative"}}>
-        {/* Module header bar */}
-        <div style={{padding:"8px 16px",borderBottom:`1px solid ${C.border}`,background:"linear-gradient(90deg,#141210,#0f1110)",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
-          {activeStep&&<>
-            <span style={{fontSize:14}}>{activeStep.icon}</span>
-            <div>
-              <div style={{...cinzel,fontSize:13,color:C.gold,letterSpacing:"0.08em"}}>{activeStep.label}</div>
-              <div style={{fontSize:10,color:C.muted}}>{activeStep.sub}</div>
-            </div>
-          </>}
-          {!activeStep&&<div style={{...cinzel,fontSize:13,color:C.gold,letterSpacing:"0.08em"}}>
-            {activeModule==="initiative"?"⚔️ Initiative Tracker":activeModule==="monsters"?"📖 Monster Quickview":""}
-          </div>}
-          <button onClick={()=>setHelpKey(moduleHelpKey)} style={{...btn("",{fontSize:10,padding:"3px 9px",marginLeft:"auto"}),opacity:0.7}}>? Help</button>
-        </div>
-        {/* Module content */}
-        <div style={{height:"calc(100% - 37px)",overflow:"hidden"}}>
-          {activeModule==="initiative"&&<InitiativeTracker/>}
-          {activeModule==="monsters"  &&<MonsterQuickview onAddToCombat={addToTracker}/>}
-          {activeModule==="encounters"&&<EncounterBuilder onToast={showToast}/>}
-          {activeModule==="npcs"      &&<NpcTracker/>}
-        </div>
-      </div>
+    <div class="context-hint" id="context-hint">Bereid je sessie voor: party → sessie → encounters → NPCs</div>
+    <div class="topbar-right">
+      <button onclick="showHelp()" style="padding:4px 10px;font-size:11px">? Help</button>
+      <a href="https://aonprd.com" target="_blank" style="font-size:10px;letter-spacing:.1em">AoN ↗</a>
     </div>
   </div>
-</div>;
+  <div id="body">
+    <div id="sidebar">
+      <div class="sidebar-section-label" id="sidebar-section-label">Voorbereiding</div>
+      <div id="steps"></div>
+      <div class="sidebar-bottom">
+        <button id="mode-action-btn" class="green" style="width:100%;font-size:10px;padding:7px 8px" onclick="onModeActionClick()">🎲 Start sessie →</button>
+      </div>
+    </div>
+    <div id="main">
+      <div class="module-header">
+        <span id="mod-icon" style="font-size:14px">⚔️</span>
+        <div>
+          <div class="module-title" id="mod-title">Initiative Tracker</div>
+          <div class="module-sub" id="mod-sub">Initiative & HP bijhouden</div>
+        </div>
+        <button onclick="showHelp()" style="margin-left:auto;padding:3px 9px;font-size:10px;opacity:.7">? Help</button>
+      </div>
+      <div class="module-content" id="module-content"></div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<div id="help-modal" onclick="this.classList.remove('show')">
+  <div class="help-box" onclick="event.stopPropagation()">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:13px">
+      <span style="font-size:18px">💡</span>
+      <div class="cinzel" style="font-size:14px;color:var(--gold)" id="help-title">Help</div>
+      <button onclick="document.getElementById('help-modal').classList.remove('show')" style="margin-left:auto;background:transparent;border:none;color:var(--muted);font-size:17px;padding:0;font-family:inherit">✕</button>
+    </div>
+    <div style="font-size:14px;line-height:1.7;color:var(--text)" id="help-body"></div>
+    <button class="gold" onclick="document.getElementById('help-modal').classList.remove('show')" style="margin-top:14px;width:100%">Begrepen</button>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ─── CONSTANTS ────────────────────────────────────────────────────────────────
+const CONDITIONS = [
+  {id:'bleed',label:'Bleed',color:'#c0392b'},{id:'blinded',label:'Blinded',color:'#7f8c8d'},
+  {id:'confused',label:'Confused',color:'#8e44ad'},{id:'cowering',label:'Cowering',color:'#e67e22'},
+  {id:'dazed',label:'Dazed',color:'#95a5a6'},{id:'dazzled',label:'Dazzled',color:'#f1c40f'},
+  {id:'deafened',label:'Deafened',color:'#7f8c8d'},{id:'dying',label:'Dying',color:'#e74c3c'},
+  {id:'entangled',label:'Entangled',color:'#27ae60'},{id:'exhausted',label:'Exhausted',color:'#e67e22'},
+  {id:'fascinated',label:'Fascinated',color:'#9b59b6'},{id:'fatigued',label:'Fatigued',color:'#d35400'},
+  {id:'flat-footed',label:'Flat-Footed',color:'#95a5a6'},{id:'frightened',label:'Frightened',color:'#e74c3c'},
+  {id:'grappled',label:'Grappled',color:'#e67e22'},{id:'helpless',label:'Helpless',color:'#c0392b'},
+  {id:'nauseated',label:'Nauseated',color:'#27ae60'},{id:'panicked',label:'Panicked',color:'#e74c3c'},
+  {id:'paralyzed',label:'Paralyzed',color:'#2c3e50'},{id:'pinned',label:'Pinned',color:'#e67e22'},
+  {id:'prone',label:'Prone',color:'#95a5a6'},{id:'shaken',label:'Shaken',color:'#e74c3c'},
+  {id:'sickened',label:'Sickened',color:'#27ae60'},{id:'stable',label:'Stable',color:'#2ecc71'},
+  {id:'staggered',label:'Staggered',color:'#e67e22'},{id:'stunned',label:'Stunned',color:'#8e44ad'},
+  {id:'unconscious',label:'Unconscious',color:'#7f8c8d'}
+];
+
+const CTYPE_COLORS = {PC:'#4a9eff',Enemy:'#e74c3c',Ally:'#2ecc71',Summon:'#9b59b6'};
+
+const CR_XP = {'1/8':50,'1/6':65,'1/4':100,'1/3':135,'1/2':200,'1':400,'2':600,'3':800,
+  '4':1200,'5':1600,'6':2400,'7':3200,'8':4800,'9':6400,'10':9600,'11':12800,'12':19200,
+  '13':25600,'14':38400,'15':51200,'16':76800,'17':102400,'18':153600,'19':204800,
+  '20':307200,'21':409600,'22':614400,'23':819200,'24':1228800,'25':1638400};
+
+const XP_THRESH = {1:[50,100,150,400],2:[100,200,300,600],3:[150,300,450,800],4:[200,400,625,1200],
+  5:[300,500,750,1600],6:[400,750,1100,2400],7:[500,900,1300,3200],8:[600,1400,2000,4800],
+  9:[800,1600,2400,6400],10:[1000,2000,2800,9600],11:[1200,2400,3600,12800],12:[1600,3000,4500,19200],
+  13:[2000,3800,5600,25600],14:[2500,4500,6400,38400],15:[3000,5500,8000,51200],
+  16:[3500,6500,9600,76800],17:[4000,7500,11000,102400],18:[5000,8500,13000,153600],
+  19:[5500,10000,15000,204800],20:[6000,11000,16000,307200]};
+
+const DIFF_LABELS = ['Easy','Medium','Hard','Epic'];
+const DIFF_COLORS = ['#2ecc71','#f39c12','#e67e22','#e74c3c'];
+
+const PF1_CLASSES = ['Barbarian','Bard','Cleric','Druid','Fighter','Monk','Paladin','Ranger',
+  'Rogue','Sorcerer','Wizard','Alchemist','Cavalier','Gunslinger','Inquisitor','Magus','Oracle',
+  'Summoner','Witch','Ninja','Samurai','Arcanist','Bloodrager','Brawler','Hunter','Investigator',
+  'Shaman','Skald','Slayer','Swashbuckler','Warpriest','Kineticist','Medium','Mesmerist',
+  'Occultist','Psychic','Spiritualist','Shifter','Vigilante','Unchained Barbarian',
+  'Unchained Monk','Unchained Rogue','Unchained Summoner','Adept','Aristocrat','Commoner',
+  'Expert','Warrior','Arcane Archer','Arcane Trickster','Assassin','Dragon Disciple',
+  'Duelist','Eldritch Knight','Loremaster','Mystic Theurge','Pathfinder Chronicler',
+  'Shadowdancer','Antipaladin'];
+
+const CR_LIST = ['1/8','1/6','1/4','1/3','1/2','1','2','3','4','5','6','7','8','9','10',
+  '11','12','13','14','15','16','17','18','19','20','21','22','23','24','25'];
+
+const NPC_STATUSES = ['Levend','Dood','Gevlucht','Onbekend','Gevangen'];
+const NPC_RELS     = ['Vriend','Neutraal','Vijand','Onbekend','Wisselvallig'];
+const NPC_STAT_C   = {Levend:'#2ecc71',Dood:'#c0392b',Gevlucht:'#e67e22',Onbekend:'#7f8c8d',Gevangen:'#9b59b6'};
+const NPC_REL_C    = {Vriend:'#2ecc71',Neutraal:'#95a5a6',Vijand:'#e74c3c',Onbekend:'#7f8c8d',Wisselvallig:'#f39c12'};
+const NPC_TAGS_PRE = ['quest giver','informant','merchant','guard','noble','villain','ally','contact','witness','captive','recurring'];
+
+const HELP_TEXT = {
+  initiative: {title:'Initiative Tracker', text:'Voeg deelnemers toe via het formulier onderaan. Klik "Roll All" voor initiatives, dan "Start Combat". Klik het getal om initiative te wijzigen. Schade/healing invoeren en Enter drukken. "▼ cond" voor condities.'},
+  monsters:   {title:'Monster Quickview',  text:'Zoek op naam of type. Filter op CR, creature type of grootte. Klik een monster voor het volledige statblock. Gebruik "⚔️ Voeg toe aan Tracker" om toe te voegen aan de actieve combat.'},
+  encounters: {title:'Encounter Builder',  text:'Maak sessies en encounters aan. Voeg monsters toe via de zoekbalk. De XP-balk toont Easy/Medium/Hard/Epic op basis van je party. "Naar Tracker" stuurt alles door naar de Initiative Tracker.'},
+  npcs:       {title:'NPC Tracker',        text:'Leg NPCs vast met naam, rol, locatie en relatie. "GM Notities" is verborgen voor spelers. Status snel wijzigen via de knoppen onderaan. Exporteer als JSON voor back-up.'}
+};
+
+const WORKFLOW = {
+  prep: [
+    {key:'party',     icon:'👥', label:'Party',      sub:'Spelers & levels',       module:'encounters'},
+    {key:'session',   icon:'📅', label:'Sessie',     sub:'Datum & notities',       module:'encounters'},
+    {key:'encounter', icon:'🗺️', label:'Encounters', sub:'Monsters & XP balans',   module:'encounters'},
+    {key:'npcs',      icon:'🎭', label:'NPCs',       sub:'Personages voorbereiden', module:'npcs'}
+  ],
+  play: [
+    {key:'initiative',icon:'⚔️', label:'Combat',    sub:'Initiative & HP',         module:'initiative'},
+    {key:'monsters',  icon:'📖', label:'Monsters',  sub:'Statblocks opzoeken',     module:'monsters'},
+    {key:'npc-play',  icon:'🎭', label:'NPCs',      sub:'Status bijhouden',        module:'npcs'}
+  ]
+};
+
+// ─── HELPERS ─────────────────────────────────────────────────────────────────
+const uid = () => Math.random().toString(36).slice(2,10);
+const d20 = () => Math.floor(Math.random()*20)+1;
+const sign = n => n == null ? '—' : (n>=0?'+':'')+n;
+const abMod = s => { if(s==null)return null; const m=Math.floor((s-10)/2); return (m>=0?'+':'')+m; };
+const fmtXP = n => n>=1000 ? (n/1000).toFixed(n%1000===0?0:1)+'k' : String(n||0);
+const esc = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+function load(key) { try { return JSON.parse(localStorage.getItem(key)); } catch(e) { return null; } }
+function save(key,val) { try { localStorage.setItem(key,JSON.stringify(val)); } catch(e) {} }
+
+let toastTimer = null;
+function toast(msg, color='#2ecc71') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.style.color = color;
+  el.style.borderColor = color;
+  el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('show'), 2500);
 }
 
-ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+function showHelp() {
+  const ht = HELP_TEXT[appState.activeModule] || {title:'Help',text:'Selecteer een module.'};
+  document.getElementById('help-title').textContent = ht.title;
+  document.getElementById('help-body').textContent = ht.text;
+  document.getElementById('help-modal').classList.add('show');
+}
+
+// ─── XP CALCULATIONS ─────────────────────────────────────────────────────────
+function calcRawXP(monsters) {
+  return (monsters||[]).reduce((s,m) => s+(CR_XP[m.cr]||0)*(m.count||1), 0);
+}
+function xpMult(n) {
+  if(n<=1)return 1; if(n===2)return 1.5; if(n<=6)return 2;
+  if(n<=10)return 2.5; if(n<=14)return 3; return 4;
+}
+function monCount(monsters) { return (monsters||[]).reduce((s,m)=>s+(m.count||1),0); }
+function adjXP(monsters) { const r=calcRawXP(monsters); return Math.round(r*xpMult(monCount(monsters))); }
+function avgLevel(party) {
+  if(!party||!party.members||!party.members.length) return 1;
+  return Math.round(party.members.reduce((s,m)=>s+(m.level||1),0)/party.members.length);
+}
+function getDiff(xp, party) {
+  if(!party||!party.members||!party.members.length) return null;
+  const lvl = Math.min(20,Math.max(1,avgLevel(party)));
+  const t = XP_THRESH[lvl]; if(!t) return null;
+  const pp = xp/party.members.length;
+  if(pp<t[0]) return {label:'Trivial',color:'#5a5a6a'};
+  if(pp<t[1]) return {label:'Easy',color:DIFF_COLORS[0]};
+  if(pp<t[2]) return {label:'Medium',color:DIFF_COLORS[1]};
+  if(pp<t[3]) return {label:'Hard',color:DIFF_COLORS[2]};
+  return {label:'Epic',color:DIFF_COLORS[3]};
+}
+function getThresholds(party) {
+  if(!party||!party.members||!party.members.length) return null;
+  const lvl = Math.min(20,Math.max(1,avgLevel(party)));
+  const t = XP_THRESH[lvl]; if(!t) return null;
+  return t.map(v=>v*party.members.length);
+}
+
+// ─── APP STATE ────────────────────────────────────────────────────────────────
+const appState = {
+  mode: load('pf1e-mode')||'prep',
+  activeModule: load('pf1e-tab')||'initiative'
+};
+
+function setMode(m) {
+  appState.mode = m;
+  save('pf1e-mode',m);
+  const steps = WORKFLOW[m];
+  // Switch to first step's module if current doesn't exist in new mode
+  const exists = steps.some(s=>s.module===appState.activeModule);
+  if(!exists) navigateTo(steps[0].module);
+  else renderSidebar();
+  updateTopbar();
+}
+
+function navigateTo(module) {
+  appState.activeModule = module;
+  save('pf1e-tab',module);
+  renderSidebar();
+  renderModule();
+  updateModuleHeader();
+}
+
+function onModeActionClick() {
+  if(appState.mode==='prep') { setMode('play'); navigateTo('initiative'); }
+  else { setMode('prep'); navigateTo('encounters'); }
+}
+
+function updateTopbar() {
+  document.getElementById('btn-prep').classList.toggle('active', appState.mode==='prep');
+  document.getElementById('btn-play').classList.toggle('active', appState.mode==='play');
+  document.getElementById('context-hint').textContent = appState.mode==='prep'
+    ? 'Bereid je sessie voor: party → sessie → encounters → NPCs'
+    : 'Je bent aan het spelen — combat, monsters opzoeken, NPCs bijhouden';
+  document.getElementById('context-hint').style.color = appState.mode==='prep' ? 'var(--muted)' : '#7ab87a';
+  document.getElementById('mode-action-btn').textContent = appState.mode==='prep' ? '🎲 Start sessie →' : '← Terug naar Prep';
+  document.getElementById('mode-action-btn').className = appState.mode==='prep' ? 'green' : '';
+  document.getElementById('mode-action-btn').style.cssText = 'width:100%;font-size:10px;padding:7px 8px';
+  document.getElementById('sidebar-section-label').textContent = appState.mode==='prep' ? 'Voorbereiding' : 'Tijdens het Spel';
+}
+
+function renderSidebar() {
+  const steps = WORKFLOW[appState.mode];
+  let html = '';
+  steps.forEach((step,i) => {
+    const active = step.module === appState.activeModule || (step.key==='npc-play'&&appState.activeModule==='npcs');
+    html += `<button class="step-btn${active?' active':''}" onclick="navigateTo('${step.module}')">
+      <div style="display:flex;flex-direction:column;align-items:center;flex-shrink:0">
+        <div class="step-num">${i+1}</div>
+        ${i<steps.length-1?'<div class="step-connector"></div>':''}
+      </div>
+      <div style="min-width:0;flex:1">
+        <div class="step-label">${step.icon} ${step.label}</div>
+        <div class="step-sub">${step.sub}</div>
+      </div>
+    </button>`;
+  });
+  document.getElementById('steps').innerHTML = html;
+}
+
+function updateModuleHeader() {
+  const steps = WORKFLOW[appState.mode];
+  const step = steps.find(s=>s.module===appState.activeModule||(s.key==='npc-play'&&appState.activeModule==='npcs'));
+  const labels = {initiative:'Initiative Tracker',monsters:'Monster Quickview',encounters:'Encounter Builder',npcs:'NPC Tracker'};
+  const subs = {initiative:'Initiative & HP bijhouden',monsters:'Statblocks opzoeken',encounters:'Sessie & Encounter planning',npcs:'Personages bijhouden'};
+  if(step) {
+    document.getElementById('mod-icon').textContent = step.icon;
+    document.getElementById('mod-title').textContent = labels[appState.activeModule]||step.label;
+    document.getElementById('mod-sub').textContent = step.sub;
+  } else {
+    document.getElementById('mod-icon').textContent = '⚔️';
+    document.getElementById('mod-title').textContent = labels[appState.activeModule]||appState.activeModule;
+    document.getElementById('mod-sub').textContent = subs[appState.activeModule]||'';
+  }
+}
+
+// ─── MODULE ROUTER ────────────────────────────────────────────────────────────
+function renderModule() {
+  const el = document.getElementById('module-content');
+  el.innerHTML = '';
+  el.style.overflow = 'hidden';
+  if(appState.activeModule==='initiative') renderInitiativeTracker(el);
+  else if(appState.activeModule==='monsters') renderMonsterQuickview(el);
+  else if(appState.activeModule==='encounters') renderEncounterBuilder(el);
+  else if(appState.activeModule==='npcs') renderNpcTracker(el);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MODULE 1: INITIATIVE TRACKER
+// ══════════════════════════════════════════════════════════════════════════════
+let IT = {
+  combatants: [],
+  activeIdx: 0,
+  round: 1,
+  started: false,
+  log: [],
+  showLog: false
+};
+
+function itLoad() {
+  const d = load('pf1e-initiative');
+  if(d) { IT.combatants=d.combatants||[]; IT.activeIdx=d.activeIdx||0; IT.round=d.round||1; IT.started=d.started||false; IT.log=d.log||[]; }
+}
+function itSave() { save('pf1e-initiative',{combatants:IT.combatants,activeIdx:IT.activeIdx,round:IT.round,started:IT.started,log:IT.log}); }
+function itLog(msg) { const t=new Date().toLocaleTimeString('nl',{hour:'2-digit',minute:'2-digit'}); IT.log=[...IT.log.slice(-99),`[${t}] ${msg}`]; }
+
+function renderInitiativeTracker(el) {
+  itLoad();
+  el.innerHTML = `<div id="it-wrap">
+    <div id="it-toolbar">
+      <button id="it-roll-btn" class="green" onclick="itRollAll()">🎲 Roll All</button>
+      <button id="it-start-btn" class="gold" onclick="itStart()">▶ Start Combat</button>
+      <button id="it-next-btn" class="gold hidden" onclick="itNext()" style="font-size:13px">Volgende beurt ▶</button>
+      <button id="it-stop-btn" class="red hidden" onclick="itStop()">■ Stop</button>
+      <span id="it-round-label" class="cinzel hidden" style="font-size:11px;color:var(--gold);margin-left:4px"></span>
+      <button onclick="itToggleLog()" style="font-size:11px">▼ Log</button>
+      <button class="red" style="margin-left:auto;font-size:11px" onclick="itReset()">🗑 Reset</button>
+      <span style="font-size:11px;color:var(--dim)" id="it-count-label"></span>
+    </div>
+    <div id="it-log" class="hidden"></div>
+    <div id="it-active-banner" class="hidden"></div>
+    <div id="it-list"></div>
+    <div id="it-add-form">
+      <div class="it-add-grid">
+        <div><label>Naam</label><input id="it-name" placeholder="Goblin, Harsk..." onkeydown="if(event.key==='Enter')itAdd()"></div>
+        <div><label>Type</label><select id="it-type"><option>Enemy</option><option>PC</option><option>Ally</option><option>Summon</option></select></div>
+        <div><label>Init +</label><input id="it-bonus" type="number" value="0"></div>
+        <div><label>HP</label><input id="it-hp" type="number" placeholder="0"></div>
+        <div><label>AC</label><input id="it-ac" type="number" placeholder="10"></div>
+        <div><label>CON</label><input id="it-con" type="number" value="10"></div>
+      </div>
+      <div style="display:flex;gap:7px;margin-top:9px;align-items:center">
+        <button onclick="itRollOne()">🎲 Roll d20</button>
+        <span id="it-rolled" style="color:var(--gold);font-family:'Cinzel',serif;font-size:14px"></span>
+        <button class="gold" onclick="itAdd()">+ Toevoegen</button>
+      </div>
+    </div>
+  </div>`;
+  itRefresh();
+}
+
+function itRefresh() {
+  if(!document.getElementById('it-wrap')) return;
+  const sorted = IT.started ? IT.combatants : [...IT.combatants].sort((a,b)=>b.initiative-a.initiative);
+  // toolbar
+  document.getElementById('it-roll-btn').classList.toggle('hidden', IT.started);
+  document.getElementById('it-start-btn').classList.toggle('hidden', IT.started);
+  document.getElementById('it-next-btn').classList.toggle('hidden', !IT.started);
+  document.getElementById('it-stop-btn').classList.toggle('hidden', !IT.started);
+  document.getElementById('it-round-label').classList.toggle('hidden', !IT.started);
+  if(IT.started) document.getElementById('it-round-label').textContent = `Ronde ${IT.round}`;
+  document.getElementById('it-count-label').textContent = `${IT.combatants.length} deelnemers`;
+  // log
+  const logEl = document.getElementById('it-log');
+  logEl.innerHTML = IT.log.map(e=>`<div class="log-entry">${esc(e)}</div>`).join('');
+  logEl.scrollTop = logEl.scrollHeight;
+  // active banner
+  const banner = document.getElementById('it-active-banner');
+  if(IT.started && sorted[IT.activeIdx]) {
+    const a = sorted[IT.activeIdx];
+    banner.classList.remove('hidden');
+    banner.innerHTML = `<span style="font-size:15px">⚔️</span>
+      <div><div style="font-size:10px;color:var(--muted);letter-spacing:.15em;text-transform:uppercase">Actieve beurt</div>
+        <div class="cinzel" style="font-size:17px;color:var(--gold)">${esc(a.name)}</div></div>
+      <div style="margin-left:auto;display:flex;gap:14px">
+        <div style="text-align:center"><div style="font-size:10px;color:var(--muted)">AC</div><div class="cinzel" style="font-size:19px;color:#9ab8d8">${a.ac||'—'}</div></div>
+        <div style="text-align:center"><div style="font-size:10px;color:var(--muted)">HP</div><div class="cinzel" style="font-size:19px;color:#2ecc71">${a.hpCurrent}<span style="font-size:12px;color:var(--dim)">/${a.hpMax||'∞'}</span></div></div>
+      </div>`;
+  } else { banner.classList.add('hidden'); }
+  // list
+  const list = document.getElementById('it-list');
+  if(!sorted.length) {
+    list.innerHTML = '<div class="empty-state"><div class="empty-icon">⚔️</div><div class="empty-title">Geen deelnemers</div><div class="empty-sub">Voeg PCs en vijanden toe via het formulier hieronder</div></div>';
+    return;
+  }
+  list.innerHTML = sorted.map((c,i) => {
+    const isActive = IT.started && i===IT.activeIdx;
+    const dead = c.hpMax>0 && c.hpCurrent<=-(c.conScore||10);
+    const dying = c.hpMax>0 && c.hpCurrent<0 && !dead;
+    const pct = c.hpMax>0 ? Math.max(0,Math.min(100,(c.hpCurrent/c.hpMax)*100)) : 100;
+    const hpCol = pct>60?'#2ecc71':pct>30?'#f39c12':'#e74c3c';
+    const tc = CTYPE_COLORS[c.type]||'#888';
+    const conds = (c.conditions||[]).map(id=>{ const cd=CONDITIONS.find(x=>x.id===id); return cd?`<span class="cond-tag" style="color:${cd.color};border-color:${cd.color}55;background:${cd.color}11" onclick="itToggleCond('${c.id}','${id}')">${esc(cd.label)} ✕</span>`:''; }).join('');
+    return `<div class="combatant-row${isActive?' active-turn':''}${dead?' dead':''}" id="crow-${c.id}">
+      <div class="init-box${isActive?' active':''}" onclick="itEditInit('${c.id}')" id="ibox-${c.id}">${c.initiative}</div>
+      <div>
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+          ${isActive?'<span style="color:var(--gold);font-size:10px">▶</span>':''}
+          <span class="cinzel" style="font-size:12px;color:${dead?'#5a3a3a':'var(--text)'};${dead?'text-decoration:line-through':''}">${esc(c.name)}</span>
+          <span style="font-size:9px;padding:1px 4px;border-radius:3px;background:${tc}22;border:1px solid ${tc}44;color:${tc}">${esc(c.type)}</span>
+          ${dying?'<span style="font-size:9px;color:#e74c3c;font-family:Cinzel,serif">DYING</span>':''}
+          ${dead?'<span style="font-size:9px;color:#7a2020;font-family:Cinzel,serif">DEAD</span>':''}
+        </div>
+        <div>${conds}</div>
+      </div>
+      <div style="text-align:center"><label>AC</label><div class="cinzel" style="font-size:14px;color:#9ab8d8">${c.ac||'—'}</div></div>
+      <div>
+        <label>HP</label>
+        <div style="display:flex;align-items:center;gap:4px">
+          <span class="cinzel" style="font-size:13px;color:${hpCol}">${c.hpCurrent}</span>
+          <span style="color:var(--dim);font-size:11px">/${c.hpMax||'∞'}</span>
+        </div>
+        ${c.hpMax>0?`<div class="hp-bar-wrap"><div class="hp-bar" style="width:${pct}%;background:${hpCol}"></div></div>`:''}
+      </div>
+      <div>
+        <label>Dmg / Heal</label>
+        <div style="display:flex;gap:3px;margin-bottom:3px">
+          <input class="dmg-input" id="dmg-${c.id}" placeholder="dmg" onkeydown="if(event.key==='Enter')itApplyDmg('${c.id}')">
+          <button class="red" style="padding:2px 6px;font-size:13px;border-radius:4px" onclick="itApplyDmg('${c.id}')">−</button>
+        </div>
+        <div style="display:flex;gap:3px">
+          <input class="dmg-input" id="heal-${c.id}" placeholder="heal" onkeydown="if(event.key==='Enter')itApplyHeal('${c.id}')">
+          <button class="green" style="padding:2px 6px;font-size:13px;border-radius:4px" onclick="itApplyHeal('${c.id}')">+</button>
+        </div>
+      </div>
+      <div style="text-align:center"><label>Init+</label><div style="color:var(--muted);font-size:12px">${sign(c.initBonus)}</div></div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;align-items:flex-start">
+        <button style="font-size:11px;padding:3px 7px" onclick="itToggleCondPanel('${c.id}')">▼ cond</button>
+        <button class="red" style="font-size:11px;padding:3px 6px" onclick="itRemove('${c.id}')">✕</button>
+        <div id="condpanel-${c.id}" class="hidden" style="width:100%"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function itRollAll() {
+  IT.combatants = IT.combatants.map(c=>({...c, initiative:d20()+(c.initBonus||0)}));
+  itLog('🎲 All initiatives rolled'); itSave(); itRefresh();
+}
+function itStart() {
+  if(!IT.combatants.length) return;
+  IT.combatants.sort((a,b)=>b.initiative-a.initiative);
+  IT.activeIdx=0; IT.round=1; IT.started=true;
+  itLog('═══ COMBAT GESTART ═══');
+  itLog('Volgorde: '+IT.combatants.map(c=>`${c.name}(${c.initiative})`).join(', '));
+  itSave(); itRefresh();
+}
+function itStop() { IT.started=false; IT.activeIdx=0; itLog('■ Combat gestopt'); itSave(); itRefresh(); }
+function itNext() {
+  const n=(IT.activeIdx+1)%IT.combatants.length;
+  if(n===0){IT.round++;itLog(`─── Ronde ${IT.round} ───`);}
+  IT.activeIdx=n;
+  if(IT.combatants[n]) itLog(`Beurt: ${IT.combatants[n].name}`);
+  itSave(); itRefresh();
+}
+function itReset() {
+  if(!confirm('Reset encounter?')) return;
+  IT.combatants=[]; IT.activeIdx=0; IT.round=1; IT.started=false;
+  itSave(); itRefresh();
+}
+function itToggleLog() {
+  IT.showLog=!IT.showLog;
+  document.getElementById('it-log').classList.toggle('hidden',!IT.showLog);
+}
+let itRolledInit = null;
+function itRollOne() {
+  const bonus=parseInt(document.getElementById('it-bonus').value)||0;
+  itRolledInit=d20()+bonus;
+  document.getElementById('it-rolled').textContent='= '+itRolledInit;
+}
+function itAdd() {
+  const name=document.getElementById('it-name').value.trim();
+  if(!name) return;
+  const bonus=parseInt(document.getElementById('it-bonus').value)||0;
+  const init=itRolledInit!==null?itRolledInit:d20()+bonus;
+  const c={id:uid(),name,type:document.getElementById('it-type').value,initBonus:bonus,initiative:init,
+    hpMax:parseInt(document.getElementById('it-hp').value)||0,
+    hpCurrent:parseInt(document.getElementById('it-hp').value)||0,
+    ac:parseInt(document.getElementById('it-ac').value)||0,
+    conScore:parseInt(document.getElementById('it-con').value)||10,conditions:[]};
+  IT.combatants.push(c);
+  itLog(`${c.name} (${c.type}) — Init ${c.initiative}`);
+  document.getElementById('it-name').value='';
+  document.getElementById('it-hp').value='';
+  document.getElementById('it-ac').value='';
+  document.getElementById('it-bonus').value='0';
+  itRolledInit=null;
+  document.getElementById('it-rolled').textContent='';
+  itSave(); itRefresh();
+  document.getElementById('it-name').focus();
+}
+function itRemove(id) {
+  const c=IT.combatants.find(x=>x.id===id);
+  IT.combatants=IT.combatants.filter(x=>x.id!==id);
+  if(c) itLog(`${c.name} verwijderd`);
+  itSave(); itRefresh();
+}
+function itApplyDmg(id) {
+  const v=parseInt(document.getElementById('dmg-'+id)?.value||'0');
+  if(!v||v<=0) return;
+  IT.combatants=IT.combatants.map(c=>{ if(c.id!==id)return c; const nh=Math.max(-999,c.hpCurrent-v); itLog(`${c.name} −${v} HP → ${nh}`); return {...c,hpCurrent:nh}; });
+  if(document.getElementById('dmg-'+id)) document.getElementById('dmg-'+id).value='';
+  itSave(); itRefresh();
+}
+function itApplyHeal(id) {
+  const v=parseInt(document.getElementById('heal-'+id)?.value||'0');
+  if(!v||v<=0) return;
+  IT.combatants=IT.combatants.map(c=>{ if(c.id!==id)return c; const nh=Math.min(c.hpMax||9999,c.hpCurrent+v); itLog(`${c.name} +${v} HP → ${nh}`); return {...c,hpCurrent:nh}; });
+  if(document.getElementById('heal-'+id)) document.getElementById('heal-'+id).value='';
+  itSave(); itRefresh();
+}
+function itEditInit(id) {
+  const c=IT.combatants.find(x=>x.id===id); if(!c) return;
+  const el=document.getElementById('ibox-'+id); if(!el) return;
+  const inp=document.createElement('input');
+  inp.value=c.initiative; inp.style.cssText='width:28px;background:transparent;border:none;color:var(--gold);font-family:Cinzel,serif;font-size:13px;text-align:center;outline:none';
+  el.innerHTML=''; el.appendChild(inp); inp.focus(); inp.select();
+  function commit(){ const v=parseInt(inp.value); if(!isNaN(v)){IT.combatants=IT.combatants.map(x=>x.id===id?{...x,initiative:v}:x); itLog(`${c.name} initiative → ${v}`); itSave();} itRefresh(); }
+  inp.onblur=commit; inp.onkeydown=e=>{ if(e.key==='Enter')commit(); };
+}
+function itToggleCondPanel(id) {
+  const panel=document.getElementById('condpanel-'+id); if(!panel) return;
+  if(!panel.classList.contains('hidden')) { panel.classList.add('hidden'); return; }
+  const c=IT.combatants.find(x=>x.id===id); if(!c) return;
+  panel.innerHTML='<div class="cond-panel">'+CONDITIONS.map(cd=>{
+    const active=(c.conditions||[]).includes(cd.id);
+    return `<span class="cond-tag" style="color:${active?cd.color:'var(--dim)'};border-color:${active?cd.color+'66':'var(--border)'};background:${active?cd.color+'18':'transparent'};font-size:10px" onclick="itToggleCond('${id}','${cd.id}')">${esc(cd.label)}</span>`;
+  }).join('')+'</div>';
+  panel.classList.remove('hidden');
+}
+function itToggleCond(cid, condId) {
+  IT.combatants=IT.combatants.map(c=>{ if(c.id!==cid)return c; const conds=c.conditions||[]; return {...c,conditions:conds.includes(condId)?conds.filter(x=>x!==condId):[...conds,condId]}; });
+  itSave(); itRefresh();
+  // re-open the panel
+  const c=IT.combatants.find(x=>x.id===cid);
+  if(c) { const panel=document.getElementById('condpanel-'+cid); if(panel&&!panel.classList.contains('hidden')) itToggleCondPanel(cid), itToggleCondPanel(cid); }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MODULE 2: MONSTER QUICKVIEW
+// ══════════════════════════════════════════════════════════════════════════════
+let MQ = { query:'', filterCR:'', filterType:'', filterSize:'', selectedName:null, selectedSource:null };
+
+function renderMonsterQuickview(el) {
+  const CTYPES=['aberration','animal','construct','dragon','fey','humanoid','magical beast','monstrous humanoid','ooze','outsider','plant','undead','vermin'];
+  const SIZES=['Fine','Diminutive','Tiny','Small','Medium','Large','Huge','Gargantuan','Colossal'];
+  el.innerHTML=`<div id="mq-wrap">
+    <div id="mq-sidebar">
+      <div style="padding:9px 11px;border-bottom:1px solid var(--border)">
+        <input id="mq-search" style="width:100%;box-sizing:border-box;font-size:14px" placeholder="Zoek naam of type..." oninput="mqFilter()" value="${esc(MQ.query)}">
+      </div>
+      <div style="padding:5px 9px;border-bottom:1px solid var(--border);display:flex;gap:4px">
+        <select id="mq-cr" style="flex:1;font-size:10px;padding:3px 5px" onchange="mqFilter()">
+          <option value="">CR</option>${CR_LIST.map(c=>`<option value="${c}"${MQ.filterCR===c?' selected':''}>CR ${c}</option>`).join('')}
+        </select>
+        <select id="mq-type" style="flex:1;font-size:10px;padding:3px 5px" onchange="mqFilter()">
+          <option value="">Type</option>${CTYPES.map(t=>`<option value="${t}"${MQ.filterType===t?' selected':''}>${t}</option>`).join('')}
+        </select>
+        <select id="mq-size" style="flex:1;font-size:10px;padding:3px 5px" onchange="mqFilter()">
+          <option value="">Size</option>${SIZES.map(s=>`<option value="${s}"${MQ.filterSize===s?' selected':''}>${s}</option>`).join('')}
+        </select>
+      </div>
+      <div style="padding:4px 11px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <span id="mq-count" style="font-size:11px;color:var(--dim)"></span>
+        <span id="mq-clear" style="font-size:11px;color:var(--muted);cursor:pointer" onclick="mqClearFilters()"></span>
+      </div>
+      <div id="mq-list"></div>
+    </div>
+    <div id="mq-detail"><div class="empty-state"><div class="empty-icon">📖</div><div class="empty-title">Selecteer een monster</div><div class="empty-sub">Zoek op naam, type of CR</div></div></div>
+  </div>`;
+  mqFilter();
+  document.getElementById('mq-search').focus();
+}
+
+function mqFilter() {
+  MQ.query = document.getElementById('mq-search')?.value||'';
+  MQ.filterCR = document.getElementById('mq-cr')?.value||'';
+  MQ.filterType = document.getElementById('mq-type')?.value||'';
+  MQ.filterSize = document.getElementById('mq-size')?.value||'';
+  const monsters = window.MONSTERS||[];
+  const q=MQ.query.toLowerCase().trim();
+  const filtered=monsters.filter(m=>{
+    if(q&&!m.name.toLowerCase().includes(q)&&!(m.type||'').toLowerCase().includes(q))return false;
+    if(MQ.filterCR&&m.cr!==MQ.filterCR)return false;
+    if(MQ.filterType&&m.type!==MQ.filterType)return false;
+    if(MQ.filterSize&&m.size!==MQ.filterSize)return false;
+    return true;
+  }).slice(0,300);
+  const countEl=document.getElementById('mq-count');
+  const clearEl=document.getElementById('mq-clear');
+  if(countEl) countEl.textContent=`${filtered.length}${filtered.length===300?'+':''} resultaten`;
+  if(clearEl) clearEl.textContent=(q||MQ.filterCR||MQ.filterType||MQ.filterSize)?'✕ wis':'';
+  const list=document.getElementById('mq-list');
+  if(!list) return;
+  list.innerHTML=filtered.map(m=>{
+    const sel=MQ.selectedName===m.name&&MQ.selectedSource===(m.source||'');
+    return `<div class="mq-item${sel?' selected':''}" onclick="mqSelect(${JSON.stringify(m.name)},${JSON.stringify(m.source||'')})">
+      <span class="cr-badge">${esc(m.cr)}</span>
+      <div style="flex:1;min-width:0">
+        <div class="cinzel" style="font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(m.name)}</div>
+        <div style="font-size:10px;color:var(--dim);font-style:italic">${esc(m.size)} ${esc(m.type)}</div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function mqClearFilters() {
+  MQ.query='';MQ.filterCR='';MQ.filterType='';MQ.filterSize='';
+  const s=document.getElementById('mq-search'); if(s)s.value='';
+  const cr=document.getElementById('mq-cr'); if(cr)cr.value='';
+  const ty=document.getElementById('mq-type'); if(ty)ty.value='';
+  const si=document.getElementById('mq-size'); if(si)si.value='';
+  mqFilter();
+}
+
+function mqSelect(name, source) {
+  MQ.selectedName=name; MQ.selectedSource=source;
+  mqFilter();
+  const m=(window.MONSTERS||[]).find(x=>x.name===name&&(x.source||'')===(source||''));
+  if(!m) return;
+  const detail=document.getElementById('mq-detail'); if(!detail) return;
+  function SB(label,val,mod){ return `<div class="stat-box"><div class="stat-box-label">${esc(label)}</div><div class="stat-box-val">${esc(val??'—')}</div>${mod!=null?`<div class="stat-box-mod">${esc(mod)}</div>`:''}</div>`; }
+  detail.innerHTML=`
+    <div class="cinzel" style="font-size:21px;color:var(--gold);letter-spacing:.06em;margin-bottom:2px">${esc(m.name)}</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:8px;font-style:italic">${esc([m.alignment,m.size,m.type].filter(Boolean).join(' '))}</div>
+    <div style="display:flex;gap:7px;margin-bottom:11px;flex-wrap:wrap">
+      ${[['CR',m.cr,'var(--gold)'],['XP',m.xp!=null?Number(m.xp).toLocaleString():null,'var(--muted)'],['Init',sign(m.init),'var(--muted)']].map(([l,v,col])=>v!=null?`<div style="background:#1e1508;border:1px solid var(--border);border-radius:6px;padding:3px 10px;display:flex;align-items:center;gap:6px"><span style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em">${l}</span><span class="cinzel" style="font-size:14px;color:${col}">${esc(v)}</span></div>`:'').join('')}
+    </div>
+    <button class="green" onclick="mqAddToTracker(${JSON.stringify(m.name)},${JSON.stringify(m.source||'')})" style="margin-bottom:13px;display:flex;align-items:center;gap:7px">⚔️ Voeg toe aan Initiative Tracker</button>
+    ${m.desc?`<div style="font-size:13px;color:#8a7a5a;font-style:italic;line-height:1.5;margin-bottom:11px;padding-bottom:11px;border-bottom:1px solid var(--border)">${esc(m.desc)}</div>`:''}
+    <div class="section-label">Defensie</div>
+    <div class="stat-row">${SB('AC',m.ac)}${SB('Touch',m.touch)}${SB('Flat-F',m.ff)}${SB('HP',m.hp)}</div>
+    ${m.hd?`<div style="font-size:11px;color:var(--dim);margin-bottom:8px">HD: ${esc(m.hd)}</div>`:''}
+    <div class="stat-row">${m.fort!=null?SB('Fort',sign(m.fort)):''}${m.ref!=null?SB('Ref',sign(m.ref)):''}${m.will!=null?SB('Will',sign(m.will)):''}${m.sr?SB('SR',m.sr):''}</div>
+    ${m.immunities?`<div style="font-size:13px;margin-bottom:5px"><span style="color:var(--muted)">Immuniteiten: </span>${esc(m.immunities)}</div>`:''}
+    ${m.resistances?`<div style="font-size:13px;margin-bottom:5px"><span style="color:var(--muted)">Resistanties: </span>${esc(m.resistances)}</div>`:''}
+    <div class="divider"></div>
+    <div class="section-label">Aanvallen</div>
+    ${m.speed?`<div style="font-size:13px;margin-bottom:6px"><span style="color:var(--muted)">Snelheid: </span>${esc(m.speed)}</div>`:''}
+    ${m.attacks?`<div style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:7px 11px;font-size:12px;font-family:monospace;color:var(--text);line-height:1.7;margin-bottom:7px">${m.attacks.split('; ').map(a=>`<div>${esc(a)}</div>`).join('')}</div>`:''}
+    <div class="divider"></div>
+    <div class="section-label">Eigenschappen</div>
+    <div class="stat-row">${['STR','DEX','CON','INT','WIS','CHA'].map(s=>SB(s,m[s.toLowerCase()]??'—',m[s.toLowerCase()]!=null?abMod(m[s.toLowerCase()]):undefined)).join('')}</div>
+    <div class="stat-row">${m.bab!=null?SB('BAB',sign(m.bab)):''}${m.cmb!=null?SB('CMB',sign(m.cmb)):''}${m.cmd!=null?SB('CMD',m.cmd):''}</div>
+    ${[['Zintuigen',m.senses],['Talen',m.languages],['Feats',m.feats],['Skills',m.skills],['Bijzondere kwaliteiten',m.sq]].filter(([,v])=>v).map(([l,v])=>`<div style="font-size:13px;margin-bottom:5px"><span style="color:var(--muted)">${l}: </span>${esc(v)}</div>`).join('')}
+    ${m.special?`<div class="divider"></div><div class="section-label">Speciale Vaardigheden</div>${m.special.split('; ').map(sa=>`<div style="background:var(--bg);border:1px solid #2a1818;border-radius:6px;padding:7px 11px;font-size:12px;color:#9a8070;line-height:1.6;margin-bottom:5px">${esc(sa)}</div>`).join('')}`:''}
+    <div class="divider"></div>
+    <div style="display:flex;align-items:center;gap:8px">
+      ${m.source?`<span style="font-size:11px;color:var(--dim);font-style:italic">Bron: ${esc(m.source)}</span>`:''}
+      <a href="${esc(m.url)}" target="_blank" class="aon-link">🔗 Archives of Nethys ↗</a>
+    </div>`;
+}
+
+function mqAddToTracker(name, source) {
+  const m=(window.MONSTERS||[]).find(x=>x.name===name&&(x.source||'')===(source||''));
+  if(!m) return;
+  const c={id:uid(),name:m.name,type:'Enemy',initBonus:m.init||0,initiative:0,hpMax:m.hp||0,hpCurrent:m.hp||0,ac:m.ac||10,conScore:m.con||10,conditions:[]};
+  IT.combatants.push(c);
+  itSave();
+  navigateTo('initiative');
+  toast(`${m.name} toegevoegd aan tracker`);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MODULE 3: ENCOUNTER BUILDER
+// ══════════════════════════════════════════════════════════════════════════════
+let EB = { sessions:[], parties:[], activeSessId:null, activeEncId:null, activePartyId:null, rightTab:'party' };
+
+function ebLoad() {
+  const d=load('pf1e-encounters');
+  if(d){EB.sessions=d.sessions||[];EB.parties=d.parties||[];EB.activeSessId=d.activeSessId||null;EB.activeEncId=d.activeEncId||null;EB.activePartyId=d.activePartyId||null;}
+}
+function ebSave() { save('pf1e-encounters',{sessions:EB.sessions,parties:EB.parties,activeSessId:EB.activeSessId,activeEncId:EB.activeEncId,activePartyId:EB.activePartyId}); }
+function ebSess() { return EB.sessions.find(s=>s.id===EB.activeSessId)||null; }
+function ebEnc()  { const s=ebSess(); return s?(s.encounters||[]).find(e=>e.id===EB.activeEncId)||null:null; }
+function ebParty(){ return EB.parties.find(p=>p.id===EB.activePartyId)||null; }
+
+function renderEncounterBuilder(el) {
+  ebLoad();
+  el.innerHTML=`<div id="eb-wrap">
+    <div id="eb-toolbar">
+      <button class="gold" onclick="ebNewSess()">+ Sessie</button>
+      <button onclick="ebNewEnc()" id="eb-newenc-btn">+ Encounter</button>
+      <div style="margin-left:auto;display:flex;gap:5px">
+        <button class="blue" onclick="ebExport()">⬇ Export</button>
+        <label style="cursor:pointer;padding:6px 12px;border:1px solid var(--border);border-radius:5px;font-family:Cinzel,serif;font-size:11px;letter-spacing:.06em;color:var(--muted)">⬆ Import<input type="file" accept=".json" style="display:none" onchange="ebImport(event)"></label>
+      </div>
+    </div>
+    <div id="eb-body">
+      <div class="eb-col" style="width:185px">
+        <div class="panel-head"><span class="panel-title">Sessies</span></div>
+        <div class="eb-list" id="eb-sess-list"></div>
+      </div>
+      <div class="eb-col" style="width:215px">
+        <div class="panel-head"><span class="panel-title" id="eb-enc-header">Encounters</span></div>
+        <div class="eb-list" id="eb-enc-list"></div>
+      </div>
+      <div id="eb-detail"></div>
+      <div id="eb-right">
+        <div class="tab-row">
+          <button class="tab-btn active" id="eb-tab-party" onclick="ebSetRightTab('party')">👥 Party</button>
+          <button class="tab-btn" id="eb-tab-session" onclick="ebSetRightTab('session')">📅 Sessie</button>
+        </div>
+        <div id="eb-right-body" style="flex:1;overflow-y:auto;padding:10px"></div>
+      </div>
+    </div>
+  </div>`;
+  ebRefresh();
+}
+
+function ebRefresh() {
+  if(!document.getElementById('eb-wrap')) return;
+  const sess=ebSess(), enc=ebEnc(), party=ebParty();
+  // Update newenc btn
+  const neb=document.getElementById('eb-newenc-btn');
+  if(neb) neb.disabled=!EB.activeSessId;
+  // Session list
+  const sl=document.getElementById('eb-sess-list');
+  if(sl) sl.innerHTML=EB.sessions.length?EB.sessions.map(s=>`
+    <div class="eb-card${s.id===EB.activeSessId?' selected':''}" onclick="ebSelectSess('${s.id}')">
+      <div class="eb-card-title">${esc(s.name)}</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:2px">${esc(s.date||'—')} · ${(s.encounters||[]).length} enc.</div>
+      <button class="red" style="font-size:9px;padding:1px 5px;margin-top:4px" onclick="event.stopPropagation();ebDelSess('${s.id}')">✕</button>
+    </div>`).join(''):'<div style="padding:20px 10px;text-align:center;color:var(--dim);font-size:12px">Maak een sessie aan</div>';
+  // Enc list
+  const eh=document.getElementById('eb-enc-header');
+  if(eh) eh.textContent=sess?esc(sess.name):'Encounters';
+  const el2=document.getElementById('eb-enc-list');
+  if(el2) {
+    if(!sess) { el2.innerHTML='<div style="padding:20px 10px;text-align:center;color:var(--dim);font-size:12px">Selecteer een sessie</div>'; }
+    else {
+      const encs=sess.encounters||[];
+      const SCOL={Voorbereid:'#4a9eff',Actief:'#f39c12',Voltooid:'#2ecc71',Overgeslagen:'#5a5a5a'};
+      el2.innerHTML=encs.length?encs.map(e=>{
+        const ax=adjXP(e.monsters||[]);
+        const df=getDiff(ax,party);
+        const sc=SCOL[e.status]||'#888';
+        return `<div class="eb-card${e.id===EB.activeEncId?' selected':''}" onclick="ebSelectEnc('${e.id}')">
+          <div class="eb-card-title">${esc(e.name)}</div>
+          <div style="display:flex;gap:5px;margin-top:3px;align-items:center;flex-wrap:wrap">
+            <span class="diff-badge" style="background:${sc}18;border:1px solid ${sc}55;color:${sc}">${esc(e.status)}</span>
+            ${df?`<span class="diff-badge" style="background:${df.color}18;border:1px solid ${df.color}55;color:${df.color}">${esc(df.label)}</span>`:''}
+            ${(e.monsters||[]).length?`<span style="font-size:10px;color:var(--dim)">${fmtXP(ax)} XP</span>`:''}
+          </div>
+          <div style="display:flex;gap:3px;margin-top:4px">
+            <button style="font-size:9px;padding:1px 5px" onclick="event.stopPropagation();ebDupEnc('${e.id}')">⎘</button>
+            <button class="red" style="font-size:9px;padding:1px 5px" onclick="event.stopPropagation();ebDelEnc('${e.id}')">✕</button>
+          </div>
+        </div>`;
+      }).join(''):'<div style="padding:20px 10px;text-align:center;color:var(--dim);font-size:12px">Maak een encounter aan</div>';
+    }
+  }
+  // Detail
+  ebRenderDetail();
+  // Right panel
+  ebRenderRight();
+}
+
+function ebRenderDetail() {
+  const detail=document.getElementById('eb-detail'); if(!detail) return;
+  const enc=ebEnc(), party=ebParty();
+  if(!enc) { detail.innerHTML='<div class="empty-state"><div class="empty-icon">⚔️</div><div class="empty-title">Selecteer een encounter</div></div>'; return; }
+  const SCOL={Voorbereid:'#4a9eff',Actief:'#f39c12',Voltooid:'#2ecc71',Overgeslagen:'#5a5a5a'};
+  const raw=calcRawXP(enc.monsters||[]), ax=adjXP(enc.monsters||[]), df=getDiff(ax,party), thresh=getThresholds(party);
+  const barMax=thresh?thresh[3]*1.2:Math.max(ax*2,1);
+  detail.innerHTML=`
+    <div style="padding:9px 13px;border-bottom:1px solid var(--border);background:linear-gradient(90deg,#1a1208,#111310);display:flex;align-items:center;gap:8px;flex-shrink:0">
+      <input class="cinzel" style="flex:1;font-size:14px;color:var(--gold);background:transparent;border:none;padding:2px 0" value="${esc(enc.name)}" onchange="ebUpdEnc('name',this.value)" placeholder="Encounter naam...">
+      <select style="width:auto;font-size:11px" onchange="ebUpdEnc('status',this.value)">
+        ${['Voorbereid','Actief','Voltooid','Overgeslagen'].map(s=>`<option${enc.status===s?' selected':''}>${s}</option>`).join('')}
+      </select>
+      <button class="green" style="font-size:11px" onclick="ebSendToTracker()">▶ Naar Tracker</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:13px 14px">
+      ${party?`<div style="background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:11px 13px;margin-bottom:13px">
+        <div style="display:flex;align-items:center;gap:9px;margin-bottom:9px">
+          <div style="flex:1"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:2px">Moeilijkheid</div>
+            <div style="display:flex;align-items:baseline;gap:7px"><span class="cinzel" style="font-size:20px;color:${df?df.color:'var(--dim)'}">${df?df.label:'—'}</span>
+            ${df?`<span style="font-size:12px;color:var(--muted)">voor ${party.members.length}p (gem. lvl ${avgLevel(party)})</span>`:''}</div></div>
+          <div style="text-align:right"><div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em">Gecorrigeerde XP</div>
+            <div class="cinzel" style="font-size:18px;color:var(--gold)">${fmtXP(ax)}</div>
+            <div style="font-size:10px;color:var(--dim)">Basis: ${fmtXP(raw)} × ${raw>0?(ax/raw).toFixed(1):'—'}</div></div>
+        </div>
+        <div class="xp-bar-wrap">${thresh?thresh.map((t,i)=>`<div class="xp-thresh-mark" style="left:${Math.min(100,(t/barMax)*100)}%;background:${DIFF_COLORS[i]}88"></div>`).join(''):''}
+          <div class="xp-bar-fill" style="width:${Math.min(100,(ax/barMax)*100)}%;background:${df?df.color:'#3a3a3a'}"></div></div>
+        ${thresh?`<div style="display:flex;gap:10px;flex-wrap:wrap">${DIFF_LABELS.map((l,i)=>`<div style="font-size:10px;color:${DIFF_COLORS[i]}">${l}: ${fmtXP(thresh[i])}</div>`).join('')}</div>`:''}
+      </div>`:''}
+      <div class="section-label">Monsters</div>
+      <div id="eb-monster-list">${(enc.monsters||[]).length?'':`<div style="text-align:center;padding:14px;color:var(--dim);font-size:12px;border:1px dashed var(--border);border-radius:5px;margin-bottom:7px">Voeg monsters toe via de zoekbalk</div>`}</div>
+      <div class="autocomplete-wrap" style="margin-bottom:6px">
+        <input id="eb-monster-search" style="width:100%;box-sizing:border-box" placeholder="Zoek monster om toe te voegen..." oninput="ebMonsterSearch()" onblur="setTimeout(()=>ebHideAuto(),200)">
+        <div id="eb-auto" class="autocomplete-list hidden"></div>
+      </div>
+      <div id="eb-manual-area">
+        <button style="width:100%;font-size:11px;margin-bottom:10px" onclick="ebShowManual()">+ Handmatig toevoegen</button>
+      </div>
+      <div class="divider"></div>
+      <div class="mb8"><label>GM Notities</label><textarea style="min-height:65px" onchange="ebUpdEnc('notes',this.value)" placeholder="Locatie, triggers, tactiek...">${esc(enc.notes||'')}</textarea></div>
+      <div><label>Loot / Rewards</label><textarea style="min-height:42px" onchange="ebUpdEnc('loot',this.value)" placeholder="Gold, items, XP...">${esc(enc.loot||'')}</textarea></div>
+    </div>`;
+  ebRenderMonsterList();
+}
+
+function ebRenderMonsterList() {
+  const enc=ebEnc(); if(!enc) return;
+  const el=document.getElementById('eb-monster-list'); if(!el) return;
+  const monsters=enc.monsters||[];
+  if(!monsters.length){el.innerHTML='<div style="text-align:center;padding:14px;color:var(--dim);font-size:12px;border:1px dashed var(--border);border-radius:5px;margin-bottom:7px">Voeg monsters toe via de zoekbalk</div>';return;}
+  el.innerHTML=monsters.map(m=>`<div class="monster-row">
+    <span class="cr-badge">${esc(m.cr)}</span>
+    <div style="flex:1;min-width:0">
+      <div class="cinzel" style="font-size:12px">${esc(m.name)}</div>
+      <div style="font-size:10px;color:var(--dim)">${fmtXP(CR_XP[m.cr]||0)} XP elk · AC ${m.ac||'?'} · HP ${m.hp||'?'}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:4px">
+      <button style="padding:2px 7px;font-size:13px" onclick="ebChangeCount('${m.id}',-1)">−</button>
+      <span class="cinzel" style="font-size:13px;min-width:18px;text-align:center">${m.count||1}</span>
+      <button style="padding:2px 7px;font-size:13px" onclick="ebChangeCount('${m.id}',1)">+</button>
+    </div>
+    <div style="font-size:11px;color:var(--muted);min-width:38px;text-align:right">${fmtXP((CR_XP[m.cr]||0)*(m.count||1))}</div>
+    <button class="red" style="padding:2px 6px;font-size:11px" onclick="ebRemoveMonster('${m.id}')">✕</button>
+  </div>`).join('');
+}
+
+function ebMonsterSearch() {
+  const q=document.getElementById('eb-monster-search')?.value||'';
+  const auto=document.getElementById('eb-auto'); if(!auto) return;
+  if(q.length<2){auto.classList.add('hidden');return;}
+  const results=(window.MONSTERS||[]).filter(m=>m.name.toLowerCase().includes(q.toLowerCase())).slice(0,8);
+  if(!results.length){auto.classList.add('hidden');return;}
+  auto.innerHTML=results.map(m=>`<div class="autocomplete-item" onmousedown="ebAddMonster(${JSON.stringify(m.name)},${JSON.stringify(m.source||'')})">
+    <span class="cr-badge">${esc(m.cr)}</span>
+    <div><div class="cinzel" style="font-size:12px">${esc(m.name)}</div><div style="font-size:10px;color:var(--dim);font-style:italic">${esc(m.size)} ${esc(m.type)}</div></div>
+  </div>`).join('');
+  auto.classList.remove('hidden');
+}
+function ebHideAuto(){const a=document.getElementById('eb-auto');if(a)a.classList.add('hidden');}
+function ebAddMonster(name, source) {
+  const m=(window.MONSTERS||[]).find(x=>x.name===name&&(x.source||'')===(source||''));
+  if(!m) return;
+  const enc=ebEnc(); if(!enc) return;
+  const existing=(enc.monsters||[]).findIndex(x=>x.name===m.name&&x.cr===m.cr);
+  if(existing>=0) { enc.monsters[existing].count=(enc.monsters[existing].count||1)+1; }
+  else { enc.monsters=[...(enc.monsters||[]),{id:uid(),name:m.name,cr:m.cr,count:1,hp:m.hp,ac:m.ac,init:m.init,con:m.con}]; }
+  const si=document.getElementById('eb-monster-search');if(si)si.value='';
+  ebHideAuto();
+  ebSave();ebRefresh();
+}
+function ebShowManual() {
+  const area=document.getElementById('eb-manual-area'); if(!area) return;
+  area.innerHTML=`<div style="display:flex;gap:5px;margin-bottom:9px;align-items:center">
+    <input id="eb-man-name" style="flex:1;box-sizing:border-box" placeholder="Naam...">
+    <select id="eb-man-cr" style="width:70px">${CR_LIST.map(c=>`<option value="${c}">CR ${c}</option>`).join('')}</select>
+    <button class="gold" onclick="ebManualAdd()">+</button>
+    <button onclick="ebHideManual()">✕</button>
+  </div>`;
+  document.getElementById('eb-man-name')?.focus();
+}
+function ebHideManual(){const a=document.getElementById('eb-manual-area');if(a)a.innerHTML='<button style="width:100%;font-size:11px;margin-bottom:10px" onclick="ebShowManual()">+ Handmatig toevoegen</button>';}
+function ebManualAdd() {
+  const name=document.getElementById('eb-man-name')?.value.trim(); if(!name) return;
+  const cr=document.getElementById('eb-man-cr')?.value||'1';
+  const enc=ebEnc(); if(!enc) return;
+  enc.monsters=[...(enc.monsters||[]),{id:uid(),name,cr,count:1,hp:0,ac:0,init:0,con:10}];
+  ebSave();ebRefresh();
+}
+function ebChangeCount(mid, delta) {
+  const enc=ebEnc(); if(!enc) return;
+  enc.monsters=(enc.monsters||[]).map(m=>m.id===mid?{...m,count:Math.max(1,(m.count||1)+delta)}:m);
+  ebSave();ebRenderMonsterList();
+}
+function ebRemoveMonster(mid){const enc=ebEnc();if(!enc)return;enc.monsters=(enc.monsters||[]).filter(m=>m.id!==mid);ebSave();ebRefresh();}
+function ebUpdEnc(field, val) {
+  const enc=ebEnc(); if(!enc) return;
+  enc[field]=val;
+  const sess=ebSess(); if(sess) sess.encounters=(sess.encounters||[]).map(e=>e.id===enc.id?enc:e);
+  ebSave(); if(field!=='notes'&&field!=='loot') ebRefresh();
+}
+function ebSendToTracker() {
+  const enc=ebEnc(), party=ebParty(); if(!enc) return;
+  const coms=(enc.monsters||[]).flatMap(m=>Array.from({length:m.count||1},(_,i)=>({id:uid(),name:(m.count||1)>1?`${m.name} ${i+1}`:m.name,type:'Enemy',initBonus:m.init||0,initiative:0,hpMax:m.hp||0,hpCurrent:m.hp||0,ac:m.ac||10,conScore:m.con||10,conditions:[]})));
+  if(party) party.members.forEach(m=>coms.push({id:uid(),name:m.name||m.cls,type:'PC',initBonus:0,initiative:0,hpMax:0,hpCurrent:0,ac:10,conScore:10,conditions:[]}));
+  IT.combatants=[...IT.combatants,...coms]; itSave();
+  navigateTo('initiative');
+  toast(`${coms.length} deelnemers toegevoegd aan tracker`);
+}
+
+function ebRenderRight() {
+  const body=document.getElementById('eb-right-body'); if(!body) return;
+  document.getElementById('eb-tab-party')?.classList.toggle('active',EB.rightTab==='party');
+  document.getElementById('eb-tab-session')?.classList.toggle('active',EB.rightTab==='session');
+  if(EB.rightTab==='party') ebRenderParty(body);
+  else ebRenderSession(body);
+}
+
+function ebRenderParty(body) {
+  const party=ebParty();
+  body.innerHTML=`<div style="display:flex;gap:5px;margin-bottom:8px">
+    <select style="flex:1" onchange="EB.activePartyId=this.value;ebSave();ebRefresh()">
+      <option value="">— Selecteer party —</option>
+      ${EB.parties.map(p=>`<option value="${p.id}"${p.id===EB.activePartyId?' selected':''}>${esc(p.name)}</option>`).join('')}
+    </select>
+    <button class="gold" style="padding:6px 10px;font-size:11px" onclick="ebNewParty()">+</button>
+  </div>
+  ${party?`<div class="mb8"><label>Party naam</label><input style="width:100%;box-sizing:border-box" value="${esc(party.name)}" onchange="party.name=this.value;ebSave()"></div>
+  <div class="section-label">Leden</div>
+  <div id="party-members">${ebRenderMembers(party)}</div>
+  <button class="green" style="width:100%;margin-top:4px;font-size:11px" onclick="ebAddMember()">+ Lid toevoegen</button>
+  ${party.members&&party.members.length?`<div style="margin-top:8px;padding:7px 9px;background:var(--bg);border:1px solid var(--border);border-radius:5px;font-size:11px;color:var(--muted)">${party.members.length} spelers · Gem. level ${(party.members.reduce((s,m)=>s+(m.level||1),0)/party.members.length).toFixed(1)}</div>`:''}
+  <button class="red" style="width:100%;margin-top:8px;font-size:10px" onclick="ebDelParty()">Party verwijderen</button>`:''}`;
+}
+
+function ebRenderMembers(party) {
+  return (party.members||[]).map(m=>`<div style="display:grid;grid-template-columns:1fr 34px 1fr auto;gap:4px;margin-bottom:5px;align-items:center">
+    <input style="font-size:12px;box-sizing:border-box" placeholder="Naam" value="${esc(m.name||'')}" onchange="ebUpdMember('${m.id}','name',this.value)">
+    <input type="number" min="1" max="20" style="font-size:12px;text-align:center;padding:6px 3px;box-sizing:border-box" value="${m.level||1}" onchange="ebUpdMember('${m.id}','level',parseInt(this.value)||1)">
+    <select style="font-size:11px;box-sizing:border-box" onchange="ebUpdMember('${m.id}','cls',this.value)">
+      ${PF1_CLASSES.map(c=>`<option${c===m.cls?' selected':''}>${c}</option>`).join('')}
+    </select>
+    <button class="red" style="padding:2px 6px;font-size:11px" onclick="ebRemMember('${m.id}')">✕</button>
+  </div>`).join('');
+}
+
+function ebUpdMember(mid,field,val){const p=ebParty();if(!p)return;const m=p.members.find(x=>x.id===mid);if(m){m[field]=val;ebSave();if(field!=='name')ebRefresh();}}
+function ebAddMember(){const p=ebParty();if(!p)return;p.members=[...(p.members||[]),{id:uid(),name:'',level:1,cls:'Fighter'}];ebSave();ebRenderRight();}
+function ebRemMember(mid){const p=ebParty();if(!p)return;p.members=p.members.filter(x=>x.id!==mid);ebSave();ebRefresh();}
+
+function ebRenderSession(body) {
+  const sess=ebSess();
+  if(!sess){body.innerHTML='<div style="color:var(--dim);font-size:12px;text-align:center;margin-top:16px">Selecteer een sessie</div>';return;}
+  const SCOL={Voorbereid:'#4a9eff',Actief:'#f39c12',Voltooid:'#2ecc71',Overgeslagen:'#5a5a5a'};
+  const party=ebParty();
+  const sessXP=(sess.encounters||[]).reduce((s,e)=>s+adjXP(e.monsters||[]),0);
+  body.innerHTML=`<div class="mb8"><label>Sessie naam</label><input style="width:100%;box-sizing:border-box" value="${esc(sess.name)}" onchange="ebUpdSess('name',this.value)"></div>
+  <div class="mb8"><label>Datum</label><input type="date" style="width:100%;box-sizing:border-box" value="${esc(sess.date||'')}" onchange="ebUpdSess('date',this.value)"></div>
+  <div class="mb8"><label>Sessie notities</label><textarea style="min-height:75px" onchange="ebUpdSess('notes',this.value)" placeholder="Verhaallijnen, hooks, recap...">${esc(sess.notes||'')}</textarea></div>
+  <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:9px 11px;font-size:12px">
+    <div class="cinzel" style="font-size:11px;color:var(--gold);letter-spacing:.1em;margin-bottom:7px">SESSIE OVERZICHT</div>
+    ${(sess.encounters||[]).map(e=>{const ax=adjXP(e.monsters||[]);const df=getDiff(ax,party);const sc=SCOL[e.status]||'#888';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:${sc};display:inline-block"></span><span style="font-size:11px;max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.name)}</span></div>
+        <div style="display:flex;gap:5px;align-items:center">${df?`<span style="font-size:9px;color:${df.color}">${df.label}</span>`:''}<span style="font-size:11px;color:var(--muted)">${fmtXP(ax)}</span></div>
+      </div>`;}).join('')}
+    <div style="display:flex;justify-content:space-between;margin-top:7px;font-family:Cinzel,serif;font-size:12px"><span style="color:var(--muted)">Totaal XP</span><span style="color:var(--gold)">${fmtXP(sessXP)}</span></div>
+    ${party&&party.members&&party.members.length?`<div style="display:flex;justify-content:space-between;margin-top:3px;font-size:11px"><span style="color:var(--dim)">Per speler</span><span style="color:var(--muted)">${fmtXP(Math.round(sessXP/party.members.length))}</span></div>`:''}
+  </div>`;
+}
+
+function ebUpdSess(field,val){const s=ebSess();if(s){s[field]=val;ebSave();}}
+function ebSetRightTab(t){EB.rightTab=t;ebRenderRight();}
+function ebNewSess(){const s={id:uid(),name:`Sessie ${EB.sessions.length+1}`,date:new Date().toLocaleDateString('nl'),notes:'',encounters:[]};EB.sessions.unshift(s);EB.activeSessId=s.id;EB.activeEncId=null;ebSave();ebRefresh();}
+function ebDelSess(id){if(!confirm('Sessie verwijderen?'))return;EB.sessions=EB.sessions.filter(s=>s.id!==id);if(EB.activeSessId===id){EB.activeSessId=null;EB.activeEncId=null;}ebSave();ebRefresh();}
+function ebSelectSess(id){EB.activeSessId=id;EB.activeEncId=null;ebSave();ebRefresh();}
+function ebNewEnc(){if(!EB.activeSessId)return;const s=ebSess();if(!s)return;const e={id:uid(),name:`Encounter ${(s.encounters||[]).length+1}`,status:'Voorbereid',monsters:[],notes:'',loot:''};s.encounters=[...(s.encounters||[]),e];EB.activeEncId=e.id;ebSave();ebRefresh();}
+function ebDelEnc(id){const s=ebSess();if(!s)return;s.encounters=(s.encounters||[]).filter(e=>e.id!==id);if(EB.activeEncId===id)EB.activeEncId=null;ebSave();ebRefresh();}
+function ebDupEnc(id){const s=ebSess();if(!s)return;const e=s.encounters.find(x=>x.id===id);if(!e)return;const c={...e,monsters:(e.monsters||[]).map(m=>({...m,id:uid()})),id:uid(),name:e.name+' (kopie)',status:'Voorbereid'};s.encounters=[...s.encounters,c];EB.activeEncId=c.id;ebSave();ebRefresh();toast('Encounter gedupliceerd');}
+function ebSelectEnc(id){EB.activeEncId=id;ebSave();ebRefresh();}
+function ebNewParty(){const p={id:uid(),name:`Party ${EB.parties.length+1}`,members:[]};EB.parties.push(p);EB.activePartyId=p.id;ebSave();ebRefresh();}
+function ebDelParty(){if(!confirm('Party verwijderen?'))return;EB.parties=EB.parties.filter(p=>p.id!==EB.activePartyId);EB.activePartyId=null;ebSave();ebRefresh();}
+function ebExport(){const blob=new Blob([JSON.stringify({sessions:EB.sessions,parties:EB.parties},null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='pf1e-encounters.json';a.click();URL.revokeObjectURL(url);}
+function ebImport(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.sessions)EB.sessions=[...EB.sessions,...d.sessions];if(d.parties)EB.parties=[...EB.parties,...d.parties];ebSave();ebRefresh();toast('Data geïmporteerd ✓');}catch{toast('Fout bij importeren','#e74c3c');}};r.readAsText(f);e.target.value='';}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// MODULE 4: NPC TRACKER
+// ══════════════════════════════════════════════════════════════════════════════
+let NPC = { npcs:[], selectedId:null, search:'', filterRel:'', filterStat:'', filterLoc:'', sortBy:'name', viewMode:'list' };
+
+function npcLoad(){const d=load('pf1e-npcs');if(d){NPC.npcs=d||[];}}
+function npcSave(){save('pf1e-npcs',NPC.npcs);}
+function npcSel(){return NPC.npcs.find(n=>n.id===NPC.selectedId)||null;}
+
+function renderNpcTracker(el) {
+  npcLoad();
+  el.innerHTML=`<div id="npc-wrap">
+    <div id="npc-sidebar">
+      <div style="padding:9px 11px;border-bottom:1px solid var(--border)">
+        <input id="npc-search" style="width:100%;box-sizing:border-box;font-size:13px" placeholder="Zoek naam, rol, locatie, tag..." oninput="npcFilter()" value="${esc(NPC.search)}">
+      </div>
+      <div style="padding:5px 9px;border-bottom:1px solid var(--border);display:flex;gap:4px;flex-wrap:wrap">
+        <select style="flex:1;min-width:65px;font-size:10px;padding:3px 5px" onchange="NPC.filterRel=this.value;npcFilter()">
+          <option value="">Relatie</option>${NPC_RELS.map(r=>`<option value="${r}"${NPC.filterRel===r?' selected':''}>${r}</option>`).join('')}
+        </select>
+        <select style="flex:1;min-width:65px;font-size:10px;padding:3px 5px" onchange="NPC.filterStat=this.value;npcFilter()">
+          <option value="">Status</option>${NPC_STATUSES.map(s=>`<option value="${s}"${NPC.filterStat===s?' selected':''}>${s}</option>`).join('')}
+        </select>
+        <select id="npc-loc-filter" style="flex:1;min-width:72px;font-size:10px;padding:3px 5px" onchange="NPC.filterLoc=this.value;npcFilter()">
+          <option value="">Locatie</option>${[...new Set(NPC.npcs.map(n=>n.location).filter(Boolean))].sort().map(l=>`<option value="${l}"${NPC.filterLoc===l?' selected':''}>${esc(l)}</option>`).join('')}
+        </select>
+      </div>
+      <div style="padding:4px 9px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:5px">
+        <span id="npc-count" style="font-size:10px;color:var(--dim);flex:1"></span>
+        <button style="font-size:10px;padding:3px 7px" onclick="NPC.viewMode=NPC.viewMode==='list'?'location':'list';npcFilter()">${NPC.viewMode==='list'?'📍 Locatie':'📋 Lijst'}</button>
+        <select style="font-size:10px;padding:3px 5px;width:auto" onchange="NPC.sortBy=this.value;npcFilter()">
+          <option value="name"${NPC.sortBy==='name'?' selected':''}>Naam</option>
+          <option value="recent"${NPC.sortBy==='recent'?' selected':''}>Recent</option>
+          <option value="status"${NPC.sortBy==='status'?' selected':''}>Status</option>
+          <option value="location"${NPC.sortBy==='location'?' selected':''}>Locatie</option>
+        </select>
+      </div>
+      <div id="npc-list"></div>
+      <div style="padding:7px 9px;border-top:1px solid var(--border);display:flex;gap:5px">
+        <button class="gold" style="flex:1;font-size:11px" onclick="npcNew()">+ Nieuwe NPC</button>
+        <button style="padding:7px 9px;font-size:10px" onclick="npcExport()">⬇</button>
+        <label style="padding:7px 9px;font-size:10px;cursor:pointer;border:1px solid var(--border);border-radius:5px;color:var(--muted)">⬆<input type="file" accept=".json" style="display:none" onchange="npcImport(event)"></label>
+      </div>
+    </div>
+    <div id="npc-detail"><div class="empty-state"><div class="empty-icon">🎭</div><div class="empty-title">Selecteer een NPC</div><div class="empty-sub">Of maak een nieuwe aan</div><button class="gold" style="margin-top:14px" onclick="npcNew()">+ Eerste NPC aanmaken</button></div></div>
+  </div>`;
+  npcFilter();
+}
+
+function npcFilter() {
+  const q=NPC.search=(document.getElementById('npc-search')?.value||'').toLowerCase();
+  NPC.filterRel=NPC.filterRel||''; NPC.filterStat=NPC.filterStat||''; NPC.filterLoc=NPC.filterLoc||'';
+  let filtered=NPC.npcs.filter(n=>{
+    if(q&&!n.name.toLowerCase().includes(q)&&!(n.role||'').toLowerCase().includes(q)&&!(n.location||'').toLowerCase().includes(q)&&!(n.tags||[]).some(t=>t.includes(q)))return false;
+    if(NPC.filterRel&&n.relation!==NPC.filterRel)return false;
+    if(NPC.filterStat&&n.status!==NPC.filterStat)return false;
+    if(NPC.filterLoc&&n.location!==NPC.filterLoc)return false;
+    return true;
+  }).sort((a,b)=>{
+    if(NPC.sortBy==='name')return(a.name||'').localeCompare(b.name||'');
+    if(NPC.sortBy==='status')return a.status.localeCompare(b.status);
+    if(NPC.sortBy==='location')return(a.location||'').localeCompare(b.location||'');
+    return b.createdAt-a.createdAt;
+  });
+  const countEl=document.getElementById('npc-count');
+  if(countEl) countEl.textContent=`${filtered.length} NPC's`;
+  const list=document.getElementById('npc-list'); if(!list) return;
+  if(!filtered.length){list.innerHTML=`<div style="padding:28px 13px;text-align:center;color:var(--dim);font-size:12px">${NPC.npcs.length?'Geen resultaten':'Geen NPC's — maak er een aan'}</div>`;return;}
+  function renderCard(n){
+    const sc=NPC_STAT_C[n.status]||'#888', rc=NPC_REL_C[n.relation]||'#888';
+    const dead=n.status==='Dood';
+    return `<div class="npc-item${NPC.selectedId===n.id?' selected':''}" onclick="npcSelect('${n.id}')">
+      <div style="display:flex;align-items:flex-start;gap:6px">
+        <div class="status-dot" style="background:${sc}"></div>
+        <div style="flex:1;min-width:0">
+          <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+            <span class="cinzel" style="font-size:12px;${dead?'text-decoration:line-through;':''}overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:125px">${esc(n.name)||'<em style="color:var(--dim)">Naamloos</em>'}</span>
+            <span class="rel-badge" style="background:${rc}18;border:1px solid ${rc}55;color:${rc}">${esc(n.relation)}</span>
+          </div>
+          <div style="font-size:10px;color:var(--dim);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${[n.race,n.role].filter(Boolean).map(esc).join(' · ')}${n.location?` <span style="color:#4a3a28">@ ${esc(n.location)}</span>`:''}</div>
+          ${(n.tags||[]).length?`<div style="margin-top:3px">${(n.tags||[]).slice(0,3).map(t=>`<span class="tag-pill">${esc(t)}</span>`).join('')}${(n.tags||[]).length>3?`<span style="font-size:9px;color:var(--dim)">+${n.tags.length-3}</span>`:''}</div>`:''}
+        </div>
+        <button onclick="event.stopPropagation();npcDel('${n.id}')" style="background:transparent;border:none;color:#4a2020;font-size:13px;padding:0 2px;flex-shrink:0;cursor:pointer">✕</button>
+      </div>
+    </div>`;
+  }
+  if(NPC.viewMode==='list') { list.innerHTML=filtered.map(renderCard).join(''); }
+  else {
+    const byLoc={};
+    filtered.forEach(n=>{const l=n.location||'— Onbekend —';if(!byLoc[l])byLoc[l]=[];byLoc[l].push(n);});
+    list.innerHTML=Object.entries(byLoc).map(([loc,ns])=>`
+      <div style="padding:5px 11px;background:var(--bg);border-bottom:1px solid var(--border);border-top:1px solid var(--border);font-size:10px;color:var(--gold);font-family:Cinzel,serif;text-transform:uppercase;letter-spacing:.12em;display:flex;align-items:center;gap:6px">📍${esc(loc)}<span style="color:var(--dim);margin-left:auto">${ns.length}</span></div>
+      ${ns.map(renderCard).join('')}`).join('');
+  }
+}
+
+function npcNew(){const n={id:uid(),name:'',race:'',role:'',location:'',status:'Levend',relation:'Onbekend',tags:[],gmNotes:'',partyKnows:'',cr:'',createdAt:Date.now()};NPC.npcs.unshift(n);NPC.selectedId=n.id;npcSave();npcFilter();npcRenderDetail();}
+function npcSelect(id){NPC.selectedId=id;npcFilter();npcRenderDetail();}
+function npcDel(id){NPC.npcs=NPC.npcs.filter(n=>n.id!==id);if(NPC.selectedId===id)NPC.selectedId=null;npcSave();npcFilter();npcRenderDetail();}
+function npcDup(id){const src=NPC.npcs.find(n=>n.id===id);if(!src)return;const c={...src,id:uid(),name:src.name+' (kopie)',createdAt:Date.now(),tags:[...(src.tags||[])]};NPC.npcs.unshift(c);NPC.selectedId=c.id;npcSave();npcFilter();npcRenderDetail();}
+function npcUpd(field,val){const n=npcSel();if(!n)return;n[field]=val;npcSave();if(['status','relation'].includes(field)){npcFilter();npcRenderDetail();}}
+function npcToggleTag(t){const n=npcSel();if(!n)return;n.tags=n.tags.includes(t)?n.tags.filter(x=>x!==t):[...n.tags,t];npcSave();npcRenderDetail();}
+function npcAddTag(){const inp=document.getElementById('npc-tag-inp');if(!inp)return;const t=inp.value.trim().toLowerCase();if(!t)return;const n=npcSel();if(!n||n.tags.includes(t))return;n.tags.push(t);inp.value='';npcSave();npcRenderDetail();}
+function npcExport(){const blob=new Blob([JSON.stringify(NPC.npcs,null,2)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='pf1e-npcs.json';a.click();URL.revokeObjectURL(url);}
+function npcImport(e){const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(Array.isArray(d)){NPC.npcs=[...NPC.npcs,...d];npcSave();npcFilter();toast('NPCs geïmporteerd ✓');}}catch{toast('Fout bij importeren','#e74c3c');}};r.readAsText(f);e.target.value='';}
+
+function npcRenderDetail(){
+  const detail=document.getElementById('npc-detail'); if(!detail) return;
+  const n=npcSel();
+  if(!n){detail.innerHTML='<div class="empty-state"><div class="empty-icon">🎭</div><div class="empty-title">Selecteer een NPC</div><div class="empty-sub">Of maak een nieuwe aan</div><button class="gold" style="margin-top:14px" onclick="npcNew()">+ Eerste NPC aanmaken</button></div>';return;}
+  const sc=NPC_STAT_C[n.status]||'#888', rc=NPC_REL_C[n.relation]||'#888';
+  detail.innerHTML=`
+    <div style="padding:11px 14px;border-bottom:1px solid var(--border);background:linear-gradient(90deg,#1a1208,#111310);flex-shrink:0;display:flex;align-items:center;gap:9px">
+      <input class="cinzel" style="flex:1;font-size:16px;color:var(--gold);background:transparent;border:none;padding:2px 0" value="${esc(n.name)}" onchange="npcUpd('name',this.value)" placeholder="NPC naam...">
+      <select style="width:auto;font-size:11px;color:${sc};border-color:${sc}44" onchange="npcUpd('status',this.value)">
+        ${NPC_STATUSES.map(s=>`<option${n.status===s?' selected':''}>${s}</option>`).join('')}
+      </select>
+      <select style="width:auto;font-size:11px;color:${rc};border-color:${rc}44" onchange="npcUpd('relation',this.value)">
+        ${NPC_RELS.map(r=>`<option${n.relation===r?' selected':''}>${r}</option>`).join('')}
+      </select>
+    </div>
+    <div class="npc-detail-body">
+      <div class="grid2">
+        <div><label>Ras / Type</label><input style="width:100%;box-sizing:border-box" value="${esc(n.race||'')}" onchange="npcUpd('race',this.value)" placeholder="Menselijk, Elf..."></div>
+        <div><label>Rol / Functie</label><input style="width:100%;box-sizing:border-box" value="${esc(n.role||'')}" onchange="npcUpd('role',this.value)" placeholder="Guard, Herbergier..."></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 80px;gap:8px;margin-bottom:9px">
+        <div><label>Locatie</label><input style="width:100%;box-sizing:border-box" value="${esc(n.location||'')}" onchange="npcUpd('location',this.value)" placeholder="Tavern, Dungeon..."></div>
+        <div><label>CR</label><input style="width:100%;box-sizing:border-box" value="${esc(n.cr||'')}" onchange="npcUpd('cr',this.value)" placeholder="1/2, 3..."></div>
+      </div>
+      <div class="mb8">
+        <label>Tags</label>
+        <div style="display:flex;flex-wrap:wrap;margin-bottom:4px">${(n.tags||[]).map(t=>`<span class="tag-pill" onclick="npcToggleTag('${esc(t)}')">${esc(t)} <span style="opacity:.6;font-size:11px">×</span></span>`).join('')}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:3px;margin-bottom:4px">${NPC_TAGS_PRE.filter(t=>!(n.tags||[]).includes(t)).map(t=>`<span onclick="npcToggleTag('${t}')" style="font-size:10px;padding:1px 6px;border-radius:10px;cursor:pointer;background:var(--bg);border:1px solid var(--border);color:var(--dim)">+ ${t}</span>`).join('')}</div>
+        <div style="display:flex;gap:5px"><input id="npc-tag-inp" style="flex:1;box-sizing:border-box;font-size:12px" placeholder="Eigen tag..." onkeydown="if(event.key==='Enter')npcAddTag()"><button onclick="npcAddTag()" style="padding:6px 11px;font-size:12px">+</button></div>
+      </div>
+      <div class="divider"></div>
+      <div class="mb8"><label>🔒 GM Notities</label><textarea style="min-height:75px" onchange="npcUpd('gmNotes',this.value)" placeholder="Geheimen, motivaties, stats, plannen...">${esc(n.gmNotes||'')}</textarea></div>
+      <div><label>👥 Wat de party weet</label><textarea style="min-height:55px" onchange="npcUpd('partyKnows',this.value)" placeholder="Naam, verschijning, bekende info...">${esc(n.partyKnows||'')}</textarea></div>
+    </div>
+    <div class="status-bar">
+      ${NPC_STATUSES.map(s=>`<button class="status-quick-btn" style="background:${n.status===s?NPC_STAT_C[s]+'22':'transparent'};border:1px solid ${n.status===s?NPC_STAT_C[s]+'66':'var(--border)'};color:${n.status===s?NPC_STAT_C[s]:'var(--dim)'}" onclick="npcUpd('status','${s}')">${s}</button>`).join('')}
+      <button style="margin-left:auto;padding:4px 9px;font-size:10px" onclick="npcDup('${n.id}')">⎘ Dup.</button>
+    </div>`;
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  const monsters = window.MONSTERS||[];
+  document.getElementById('monster-count-label').textContent = `Pathfinder 1e · ${monsters.length.toLocaleString()} monsters`;
+  updateTopbar();
+  renderSidebar();
+  updateModuleHeader();
+  renderModule();
+});
 </script>
 </body>
 </html>
