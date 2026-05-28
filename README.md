@@ -1,63 +1,76 @@
 # PF1e GM Command
 
-Volledig offline GM support tool voor **Pathfinder 1e**.  
-Regelset: **Archives of Nethys** (aonprd.com) — alle officiële en geïndexeerde bronnen.
+A fully offline GM support tool for **Pathfinder 1e**, designed for use during and between sessions on laptop or tablet. All data is local — no server, no internet required during play.
 
-## Bestanden
+**Live:** [pixelkeep.github.io/Pathfinder1e-GMTools](https://pixelkeep.github.io/Pathfinder1e-GMTools)
+
+---
+
+## Files
 
 ```
-/
-├── index.html     ← Complete GM tool (75 KB) — alle drie modules
-└── monsters.js    ← 3.655 monsters database (3.4 MB) — volledig AoN
+index.html    — Complete GM tool (81 KB), all four modules
+monsters.js   — Monster database, 3,655 entries (3.4 MB)
 ```
 
-Alleen deze twee bestanden nodig. Zet ze in dezelfde map.
+Place both files in the same folder. That's it.
 
-## Gebruik
+---
 
-**Lokaal:** Dubbelklik `index.html` — werkt direct, geen server nodig.  
-**GitHub Pages:** Upload beide bestanden → Settings → Pages → main / root → Save.  
-**URL:** `https://jouwusername.github.io/pf1e-gm-tool`
+## Usage
+
+**Local:** Double-click `index.html` — works directly in any browser, no server needed.  
+**GitHub Pages:** Upload both files to a repository root, enable Pages under Settings → Pages → Branch: main / root.
+
+---
+
+## Workflow
+
+The tool is structured around the GM's natural workflow, with a sidebar showing numbered steps and two modes:
+
+### 📋 Preparation mode
+1. **Party** — Create one or more parties with player names, levels and classes
+2. **Session** — Name your session, set a date, write notes
+3. **Encounters** — Build encounters with monsters, balance CR and XP per party
+4. **NPCs** — Prepare named characters with GM notes, player-facing info and status
+
+### 🎲 Play mode
+1. **Combat** — Initiative tracker with HP, conditions and turn order
+2. **Monsters** — Full statblock lookup mid-session
+3. **NPCs** — Track status, location and relationship to the party
+
+The **"Start Session →"** button at the bottom of the sidebar switches directly from Prep to Play mode and opens the Initiative Tracker.
+
+---
 
 ## Modules
 
 ### ⚔️ Initiative Tracker
-- Deelnemers toevoegen: naam, type (PC/Enemy/Ally/Summon), init bonus, HP, AC, CON
-- Roll All initiatives in één klik
-- Combat starten → automatisch sorteren, beurt bijhouden, ronde tellen
-- HP bijhouden met schade/healing, dying/dead detectie
-- Alle 27 PF1e condities (Shaken, Grappled, Dying, etc.)
-- Combat log met timestamps
-- Opgeslagen in localStorage — staat bewaard bij herladen
+Add combatants with name, type (PC / Enemy / Ally / Summon), initiative bonus, HP, AC and CON score. Roll all initiatives at once or enter manually. Start combat to sort automatically and step through turns. Track HP with damage and healing inputs, detect dying and dead states, apply any of the 27 Pathfinder 1e conditions per combatant. Combat log with timestamps. State persists across page reloads via localStorage.
 
 ### 📖 Monster Quickview
-- Alle 3.655 monsters uit Archives of Nethys — volledig offline
-- Zoeken op naam of type, filteren op CR / creature type / size
-- Volledig statblock: AC, HP, saves, aanvallen, ability scores, BAB/CMB/CMD,
-  feats, skills, talen, special abilities
-- "Voeg toe aan Initiative Tracker" — switcht tab en vult alles in
-- Link naar AoN pagina voor volledige regeltekst
+All 3,655 monsters from Archives of Nethys, fully offline. Search by name or type, filter by CR, creature type and size. Full statblock: AC, HP, saves, attacks, ability scores, BAB/CMB/CMD, feats, skills, languages, special abilities. "Add to Initiative Tracker" button sends the monster directly to the tracker tab. Direct link to the AoN page for full rule text.
 
 ### 🗺️ Encounter Builder
-- Meerdere **sessies** aanmaken met naam en datum
-- Meerdere **encounters** per sessie (dupliceren, status bijhouden)
-- Monsters toevoegen via zoekbalk (alle 3.655) of handmatig (naam + CR)
-- Correcte PF1e XP berekening met encounter multipliers
-- Moeilijkheidsdrempels (Easy / Medium / Hard / Epic) op basis van party level
-- Meerdere **parties** opslaan — elk met leden, levels en klassen (alle AoN klassen)
-- Sessieoverzicht: totaal XP, XP per speler, encounter statussen
-- "Naar Tracker" — stuurt alle monsters + party naar Initiative Tracker
-- Export / Import als JSON — voor backup of overdracht
+Create sessions with a name and date. Add multiple encounters per session, duplicate them, track their status (Prepared / Active / Completed / Skipped). Add monsters via the search bar (all 3,655 AoN entries) or manually with a name and CR. Correct PF1e XP calculation with encounter multipliers. Difficulty thresholds (Easy / Medium / Hard / Epic) calculated from actual party composition. Multiple parties supported, each with their own members, levels and classes. Session overview shows total XP, XP per player and all encounter statuses. "Send to Tracker" imports all monsters and party members into the Initiative Tracker. Export and import as JSON for backup or transfer.
+
+### 🎭 NPC Tracker
+Track named NPCs per encounter or session. Each NPC has a name, race/type, role, location, CR, status (Alive / Dead / Fled / Unknown / Captured), relationship to the party (Friend / Neutral / Enemy / Unknown / Erratic), tags, GM notes (hidden from players) and a "what the party knows" field. Filter by relationship, status and location. Two list views: flat list or grouped by location. Quick-change status bar at the bottom of the detail panel. Export and import as JSON.
+
+---
 
 ## Data
 
-`monsters.js` bevat alle monsters van aonprd.com: Bestiary 1-6, Monster Codex,
-NPC Codex, Adventure Path monsters, en alle overige AoN-geïndexeerde bronnen.
-PF1e is gesloten (2019) — deze database is compleet en statisch.
+`monsters.js` contains all monsters indexed on [aonprd.com](https://aonprd.com): Bestiary 1–6, Monster Codex, NPC Codex, Adventure Path monsters and all other AoN-indexed sources. Pathfinder 1e is a closed system (2019) — this database is complete and static.
 
-Gegenereerd via: github.com/c0d3rman/PathfinderMonsterDatabase
+Ruleset reference: **Archives of Nethys** — [aonprd.com](https://aonprd.com)  
+Database source: [github.com/c0d3rman/PathfinderMonsterDatabase](https://github.com/c0d3rman/PathfinderMonsterDatabase)
 
-## Volgende modules (gepland)
-- NPC Tracker — named NPCs, status, locatie, relatie tot party
-- Sessie-notities — vrije tekst, quest hooks, recap
-- Karakterblad koppeling — party importeren vanuit PF1e character sheet JSON
+---
+
+## Planned
+
+- Character sheet JSON import into party manager (link with companion character sheet project)
+- Grid / location tracker for NPC positioning on a map
+- Session notes tab
+- Loot tracker integration
