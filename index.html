@@ -791,54 +791,228 @@ function NpcTracker(){
   </div>;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════
-// ROOT APP
-// ═══════════════════════════════════════════════════════════════════════════════
-const TABS=[
-  {key:"initiative",icon:"⚔️",label:"Initiative Tracker"},
-  {key:"monsters",  icon:"📖",label:"Monster Quickview"},
-  {key:"encounters",icon:"🗺️",label:"Encounter Builder"},
-  {key:"npcs",      icon:"🎭",label:"NPC Tracker"},
-];
 
-function App(){
-  const [tab,setTab]=useState(()=>localStorage.getItem("pf1e-active-tab")||"initiative");
-  const [toast,setToast]=useState(null);
-  useEffect(()=>{localStorage.setItem("pf1e-active-tab",tab);},[tab]);
-  function showToast(msg,color="#2ecc71"){setToast({msg,color});setTimeout(()=>setToast(null),2500);}
-  function addToTracker(comData){
-    const existing=JSON.parse(localStorage.getItem("pf1e-gm-initiative")||'{"coms":[]}');
-    existing.coms=existing.coms||[];
-    existing.coms.push(comData);
-    localStorage.setItem("pf1e-gm-initiative",JSON.stringify(existing));
-    // Also set import signal
-    localStorage.setItem("pf1e-tracker-import",JSON.stringify({coms:[comData],ts:Date.now()}));
-    setTab("initiative");
-    showToast(`${comData.name} toegevoegd aan tracker`);
-  }
-  const monsters=window.MONSTERS||[];
-  return <div style={{height:"100vh",display:"flex",flexDirection:"column",fontFamily:"'Crimson Text',Georgia,serif",color:C.text,background:C.bg,overflow:"hidden"}}>
-    {toast&&<div style={{position:"fixed",top:14,right:14,background:"#1a1a1a",border:`1px solid ${toast.color}`,borderRadius:8,padding:"9px 16px",fontSize:13,color:toast.color,zIndex:1000,...cinzel,letterSpacing:"0.06em",boxShadow:"0 4px 20px rgba(0,0,0,0.6)"}}>{toast.msg}</div>}
-    <div style={{background:"linear-gradient(135deg,#1a0e05,#0d0f0e)",borderBottom:`1px solid ${C.border}`,padding:"0 20px",display:"flex",alignItems:"stretch",flexShrink:0,height:48}}>
-      <div style={{display:"flex",alignItems:"center",gap:10,paddingRight:20,borderRight:`1px solid ${C.border}`,marginRight:4}}>
-        <span style={{fontSize:18}}>⚔️</span>
-        <div>
-          <div style={{...cinzel,fontSize:15,fontWeight:700,color:C.gold,letterSpacing:"0.08em",lineHeight:1}}>GM COMMAND</div>
-          <div style={{fontSize:9,color:C.muted,letterSpacing:"0.18em",textTransform:"uppercase"}}>Pathfinder 1e · {monsters.length.toLocaleString()} monsters</div>
-        </div>
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROOT APP — Workflow sidebar layout
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Help texts per module
+const HELP = {
+  party: {
+    title: "Party instellen",
+    text: "Maak één of meerdere parties aan. Voeg leden toe met naam, level en klasse. De Encounter Builder gebruikt deze info automatisch voor de moeilijkheidsberekening."
+  },
+  encounters: {
+    title: "Encounters bouwen",
+    text: "Maak encounters aan per sessie. Voeg monsters toe via de zoekbalk (alle 3.655 AoN-monsters) of handmatig. De XP-balk toont Easy/Medium/Hard/Epic op basis van je party. Gebruik '▶ Naar Tracker' om een encounter te starten."
+  },
+  npcs: {
+    title: "NPC Tracker",
+    text: "Leg NPCs vast met naam, rol, locatie en relatie tot de party. Gebruik 'GM Notities' voor info die spelers niet weten. 'Wat de party weet' kun je eventueel hardop voorlezen. Status (Levend/Dood/Gevlucht) snel aanpassen via de knoppen onderaan."
+  },
+  initiative: {
+    title: "Initiative Tracker",
+    text: "Voeg deelnemers toe met naam, init bonus, HP en AC. Klik 'Roll All' voor initiatives, dan 'Start Combat'. Klik op het initiatiefgetal om het aan te passen. Schade en healing invoeren via de velden — druk Enter of klik de knop. Condities toevoegen via '▼ cond'."
+  },
+  monsters: {
+    title: "Monster Quickview",
+    text: "Zoek op naam of type. Filter op CR, creature type of grootte. Klik een monster voor het volledige statblock. Gebruik '⚔️ Voeg toe aan Initiative Tracker' om direct toe te voegen aan de actieve combat."
+  },
+};
+
+// Workflow steps definition
+const WORKFLOW = {
+  prep: [
+    { key:"party",      icon:"👥", label:"Party",      sub:"Spelers & levels",      module:"encounters" },
+    { key:"session",    icon:"📅", label:"Sessie",     sub:"Datum & notities",      module:"encounters" },
+    { key:"encounters", icon:"🗺️", label:"Encounters", sub:"Monsters & XP balans",  module:"encounters" },
+    { key:"npcs",       icon:"🎭", label:"NPCs",       sub:"Personages voorbereiden",module:"npcs"       },
+  ],
+  play: [
+    { key:"initiative", icon:"⚔️", label:"Combat",     sub:"Initiative & HP",       module:"initiative" },
+    { key:"monsters",   icon:"📖", label:"Monsters",   sub:"Statblocks opzoeken",   module:"monsters"   },
+    { key:"npcs-play",  icon:"🎭", label:"NPCs",       sub:"Status bijhouden",      module:"npcs"       },
+  ],
+};
+
+function HelpModal({helpKey, onClose}){
+  const h = HELP[helpKey];
+  if(!h) return null;
+  return <div style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",zIndex:200,display:"flex",alignItems:"center",justifyContent:"center"}} onClick={onClose}>
+    <div style={{background:"#141210",border:`1px solid ${C.goldDim}`,borderRadius:12,padding:"24px 28px",maxWidth:420,width:"90%",boxShadow:"0 8px 40px rgba(0,0,0,0.8)"}} onClick={e=>e.stopPropagation()}>
+      <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+        <span style={{fontSize:20}}>💡</span>
+        <div style={{...cinzel,fontSize:15,color:C.gold,letterSpacing:"0.08em"}}>{h.title}</div>
+        <button onClick={onClose} style={{marginLeft:"auto",background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:18}}>✕</button>
       </div>
-      {TABS.map(t=><button key={t.key} onClick={()=>setTab(t.key)} style={{display:"flex",alignItems:"center",gap:6,padding:"0 16px",fontFamily:"'Cinzel',serif",fontSize:11,letterSpacing:"0.08em",cursor:"pointer",border:"none",borderBottom:`2px solid ${tab===t.key?C.gold:"transparent"}`,background:tab===t.key?"rgba(200,149,42,0.07)":"transparent",color:tab===t.key?C.gold:C.muted,transition:"all 0.15s"}}><span>{t.icon}</span>{t.label}</button>)}
-      <div style={{marginLeft:"auto",display:"flex",alignItems:"center"}}>
-        <a href="https://aonprd.com" target="_blank" rel="noopener noreferrer" style={{fontSize:10,color:"#4a6a8a",textDecoration:"none",letterSpacing:"0.1em"}}>Archives of Nethys ↗</a>
-      </div>
-    </div>
-    <div style={{flex:1,overflow:"hidden"}}>
-      {tab==="initiative"&&<InitiativeTracker/>}
-      {tab==="monsters"  &&<MonsterQuickview onAddToCombat={addToTracker}/>}
-      {tab==="encounters"&&<EncounterBuilder onToast={showToast}/>}
-      {tab==="npcs"      &&<NpcTracker/>}
+      <div style={{fontSize:14,color:C.text,lineHeight:1.7,fontFamily:"'Crimson Text',Georgia,serif"}}>{h.text}</div>
+      <button onClick={onClose} style={{...btn("gold"),marginTop:16,width:"100%"}}>Begrepen</button>
     </div>
   </div>;
+}
+
+function Tooltip({text,children}){
+  const [show,setShow]=useState(false);
+  return <div style={{position:"relative",display:"inline-flex"}} onMouseEnter={()=>setShow(true)} onMouseLeave={()=>setShow(false)}>
+    {children}
+    {show&&<div style={{position:"absolute",bottom:"calc(100% + 6px)",left:"50%",transform:"translateX(-50%)",background:"#1a1208",border:`1px solid ${C.goldDim}`,borderRadius:6,padding:"6px 10px",fontSize:11,color:C.text,whiteSpace:"nowrap",zIndex:100,pointerEvents:"none",boxShadow:"0 4px 12px rgba(0,0,0,0.6)",maxWidth:220,whiteSpace:"normal",textAlign:"center",lineHeight:1.4}}>
+      {text}
+    </div>}
+  </div>;
+}
+
+function App(){
+  const [activeModule, setActiveModule] = useState(()=>localStorage.getItem("pf1e-active-tab")||"initiative");
+  const [mode, setMode]   = useState(()=>localStorage.getItem("pf1e-mode")||"prep");
+  const [helpKey, setHelpKey] = useState(null);
+  const [toast, setToast] = useState(null);
+
+  useEffect(()=>{localStorage.setItem("pf1e-active-tab",activeModule);},[activeModule]);
+  useEffect(()=>{localStorage.setItem("pf1e-mode",mode);},[mode]);
+
+  function showToast(msg,color="#2ecc71"){setToast({msg,color});setTimeout(()=>setToast(null),2800);}
+
+  function addToTracker(comData){
+    const existing=JSON.parse(localStorage.getItem("pf1e-gm-initiative")||'{"coms":[]}');
+    existing.coms=[...(existing.coms||[]),comData];
+    localStorage.setItem("pf1e-gm-initiative",JSON.stringify(existing));
+    localStorage.setItem("pf1e-tracker-import",JSON.stringify({coms:[comData],ts:Date.now()}));
+    setActiveModule("initiative");
+    showToast(`${comData.name} toegevoegd aan tracker`);
+  }
+
+  const monsters = window.MONSTERS||[];
+  const steps = WORKFLOW[mode];
+  // Which step is active?
+  const activeStep = steps.find(s=>s.module===activeModule||(s.key===activeModule));
+
+  // Determine help key for current module
+  const moduleHelpKey = activeModule;
+
+  return <div style={{height:"100vh",display:"flex",flexDirection:"column",fontFamily:"'Crimson Text',Georgia,serif",color:C.text,background:C.bg,overflow:"hidden"}}>
+
+    {/* Help modal */}
+    {helpKey && <HelpModal helpKey={helpKey} onClose={()=>setHelpKey(null)}/>}
+
+    {/* Toast */}
+    {toast&&<div style={{position:"fixed",top:14,right:14,background:"#1a1a1a",border:`1px solid ${toast.color}`,borderRadius:8,padding:"9px 16px",fontSize:13,color:toast.color,zIndex:1000,...cinzel,letterSpacing:"0.06em",boxShadow:"0 4px 20px rgba(0,0,0,0.6)"}}>{toast.msg}</div>}
+
+    {/* Top bar */}
+    <div style={{background:"linear-gradient(135deg,#1a0e05,#0d0f0e)",borderBottom:`1px solid ${C.border}`,padding:"0 16px",display:"flex",alignItems:"stretch",flexShrink:0,height:46,gap:8}}>
+      {/* Logo */}
+      <div style={{display:"flex",alignItems:"center",gap:8,paddingRight:16,borderRight:`1px solid ${C.border}`}}>
+        <span style={{fontSize:16}}>⚔️</span>
+        <div>
+          <div style={{...cinzel,fontSize:14,fontWeight:700,color:C.gold,letterSpacing:"0.08em",lineHeight:1}}>GM COMMAND</div>
+          <div style={{fontSize:9,color:C.muted,letterSpacing:"0.15em",textTransform:"uppercase"}}>Pathfinder 1e</div>
+        </div>
+      </div>
+
+      {/* Mode switcher */}
+      <div style={{display:"flex",alignItems:"center",gap:0,padding:"8px 0"}}>
+        {[["prep","📋 Voorbereiding"],["play","🎲 Spelen"]].map(([m,l])=>(
+          <button key={m} onClick={()=>setMode(m)} style={{
+            padding:"5px 14px",border:"1px solid",borderRadius:m==="prep"?"6px 0 0 6px":"0 6px 6px 0",
+            fontSize:11,...cinzel,letterSpacing:"0.06em",cursor:"pointer",transition:"all 0.15s",
+            background:mode===m?"rgba(200,149,42,0.15)":"transparent",
+            borderColor:mode===m?C.goldDim:C.border,
+            color:mode===m?C.gold:C.muted,
+          }}>{l}</button>
+        ))}
+      </div>
+
+      {/* Context hint */}
+      <div style={{display:"flex",alignItems:"center",marginLeft:8}}>
+        {mode==="prep"
+          ? <span style={{fontSize:11,color:C.muted,fontStyle:"italic"}}>Bereid je sessie voor: party → sessie → encounters → NPCs</span>
+          : <span style={{fontSize:11,color:"#7ab87a",fontStyle:"italic"}}>Je bent aan het spelen — combat, monsters opzoeken, NPCs bijhouden</span>
+        }
+      </div>
+
+      {/* Right: help + AoN */}
+      <div style={{marginLeft:"auto",display:"flex",alignItems:"center",gap:10}}>
+        <Tooltip text={`Uitleg over ${activeModule==="initiative"?"Initiative Tracker":activeModule==="monsters"?"Monster Quickview":activeModule==="encounters"?"Encounter Builder":"NPC Tracker"}`}>
+          <button onClick={()=>setHelpKey(moduleHelpKey)} style={{...btn("",{fontSize:11,padding:"4px 10px"})}}>? Help</button>
+        </Tooltip>
+        <a href="https://aonprd.com" target="_blank" rel="noopener noreferrer" style={{fontSize:10,color:"#4a6a8a",textDecoration:"none",letterSpacing:"0.1em"}}>AoN ↗</a>
+      </div>
+    </div>
+
+    {/* Body: sidebar + content */}
+    <div style={{flex:1,display:"flex",overflow:"hidden"}}>
+
+      {/* Sidebar */}
+      <div style={{width:168,flexShrink:0,display:"flex",flexDirection:"column",borderRight:`1px solid ${C.border}`,background:"#0c0e0d",overflow:"hidden"}}>
+
+        {/* Section label */}
+        <div style={{padding:"10px 12px 6px",borderBottom:`1px solid ${C.border}`}}>
+          <div style={{fontSize:9,color:C.muted,letterSpacing:"0.2em",textTransform:"uppercase",...cinzel}}>
+            {mode==="prep"?"Voorbereiding":"Tijdens het Spel"}
+          </div>
+        </div>
+
+        {/* Steps */}
+        <div style={{flex:1,overflowY:"auto",padding:"6px 0"}}>
+          {steps.map((step,i)=>{
+            const isActive = step.module===activeModule || (step.key==="npcs-play"&&activeModule==="npcs");
+            return <button key={step.key} onClick={()=>setActiveModule(step.module)} style={{
+              width:"100%",textAlign:"left",padding:"10px 12px",
+              background:isActive?"rgba(200,149,42,0.1)":"transparent",
+              borderLeft:`3px solid ${isActive?C.gold:"transparent"}`,
+              border:"none",borderLeft:`3px solid ${isActive?C.gold:"transparent"}`,
+              cursor:"pointer",transition:"all 0.15s",
+              display:"flex",alignItems:"flex-start",gap:9,
+            }}>
+              <div style={{display:"flex",flexDirection:"column",alignItems:"center",flexShrink:0,marginTop:1}}>
+                <div style={{width:20,height:20,borderRadius:"50%",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,background:isActive?C.gold:"#1e1a10",color:isActive?"#0d0f0e":C.muted,...cinzel,fontWeight:700,flexShrink:0}}>
+                  {i+1}
+                </div>
+                {i<steps.length-1&&<div style={{width:1,height:12,background:C.border,marginTop:3}}/>}
+              </div>
+              <div style={{minWidth:0,flex:1}}>
+                <div style={{fontSize:11,...cinzel,letterSpacing:"0.05em",color:isActive?C.gold:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{step.icon} {step.label}</div>
+                <div style={{fontSize:10,color:isActive?C.muted:C.dim,marginTop:1,lineHeight:1.3,whiteSpace:"normal"}}>{step.sub}</div>
+              </div>
+            </button>;
+          })}
+        </div>
+
+        {/* Bottom: mode switch hint */}
+        <div style={{padding:"10px 12px",borderTop:`1px solid ${C.border}`,flexShrink:0}}>
+          {mode==="prep"
+            ? <button onClick={()=>{setMode("play");setActiveModule("initiative");}} style={{...btn("green",{width:"100%",fontSize:10,padding:"7px 8px"})}}>🎲 Start sessie →</button>
+            : <button onClick={()=>{setMode("prep");setActiveModule("encounters");}} style={{...btn("",{width:"100%",fontSize:10,padding:"7px 8px"})}}>← Terug naar Prep</button>
+          }
+        </div>
+      </div>
+
+      {/* Main content */}
+      <div style={{flex:1,overflow:"hidden",position:"relative"}}>
+        {/* Module header bar */}
+        <div style={{padding:"8px 16px",borderBottom:`1px solid ${C.border}`,background:"linear-gradient(90deg,#141210,#0f1110)",display:"flex",alignItems:"center",gap:8,flexShrink:0}}>
+          {activeStep&&<>
+            <span style={{fontSize:14}}>{activeStep.icon}</span>
+            <div>
+              <div style={{...cinzel,fontSize:13,color:C.gold,letterSpacing:"0.08em"}}>{activeStep.label}</div>
+              <div style={{fontSize:10,color:C.muted}}>{activeStep.sub}</div>
+            </div>
+          </>}
+          {!activeStep&&<div style={{...cinzel,fontSize:13,color:C.gold,letterSpacing:"0.08em"}}>
+            {activeModule==="initiative"?"⚔️ Initiative Tracker":activeModule==="monsters"?"📖 Monster Quickview":""}
+          </div>}
+          <button onClick={()=>setHelpKey(moduleHelpKey)} style={{...btn("",{fontSize:10,padding:"3px 9px",marginLeft:"auto"}),opacity:0.7}}>? Help</button>
+        </div>
+        {/* Module content */}
+        <div style={{height:"calc(100% - 37px)",overflow:"hidden"}}>
+          {activeModule==="initiative"&&<InitiativeTracker/>}
+          {activeModule==="monsters"  &&<MonsterQuickview onAddToCombat={addToTracker}/>}
+          {activeModule==="encounters"&&<EncounterBuilder onToast={showToast}/>}
+          {activeModule==="npcs"      &&<NpcTracker/>}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>;
 }
 
 ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
