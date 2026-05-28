@@ -947,7 +947,7 @@ function ebRefresh() {
   if(sl) sl.innerHTML=EB.sessions.length?EB.sessions.map(s=>`
     <div class="eb-card${s.id===EB.activeSessId?' selected':''}" onclick="ebSelectSess('${s.id}')">
       <div class="eb-card-title">${esc(s.name)}</div>
-      <div style="font-size:10px;color:var(--dim);margin-top:2px">${esc(s.date||'—')} · ${(s.encounters||[]).length} enc.</div>
+      <div style="font-size:10px;color:var(--dim);margin-top:2px">${s.campaign?esc(s.campaign)+' · ':''} ${esc(s.date||'—')} · ${(s.encounters||[]).length} enc.</div>
       <button class="red" style="font-size:9px;padding:1px 5px;margin-top:4px" onclick="event.stopPropagation();ebDelSess('${s.id}')">✕</button>
     </div>`).join(''):'<div style="padding:20px 10px;text-align:center;color:var(--dim);font-size:12px">Maak een sessie aan</div>';
   // Enc list
@@ -1066,13 +1066,19 @@ function ebHideAuto(){const a=document.getElementById('eb-auto');if(a)a.classLis
 function ebAddMonster(name, source) {
   const m=(window.MONSTERS||[]).find(x=>x.name===name&&(x.source||'')===(source||''));
   if(!m) return;
-  const enc=ebEnc(); if(!enc) return;
+  const sess=ebSess(); if(!sess) return;
+  const enc=sess.encounters.find(e=>e.id===EB.activeEncId); if(!enc) return;
   const existing=(enc.monsters||[]).findIndex(x=>x.name===m.name&&x.cr===m.cr);
-  if(existing>=0) { enc.monsters[existing].count=(enc.monsters[existing].count||1)+1; }
-  else { enc.monsters=[...(enc.monsters||[]),{id:uid(),name:m.name,cr:m.cr,count:1,hp:m.hp,ac:m.ac,init:m.init,con:m.con}]; }
+  if(existing>=0) {
+    enc.monsters = enc.monsters.map((x,i)=>i===existing?{...x,count:(x.count||1)+1}:x);
+  } else {
+    enc.monsters = [...(enc.monsters||[]),{id:uid(),name:m.name,cr:m.cr,count:1,hp:m.hp||0,ac:m.ac||0,init:m.init||0,con:m.con||10}];
+  }
   const si=document.getElementById('eb-monster-search');if(si)si.value='';
   ebHideAuto();
-  ebSave();ebRefresh();
+  ebSave();
+  ebRenderMonsterList();
+  ebRenderDetail();
 }
 function ebShowManual() {
   const area=document.getElementById('eb-manual-area'); if(!area) return;
@@ -1088,16 +1094,23 @@ function ebHideManual(){const a=document.getElementById('eb-manual-area');if(a)a
 function ebManualAdd() {
   const name=document.getElementById('eb-man-name')?.value.trim(); if(!name) return;
   const cr=document.getElementById('eb-man-cr')?.value||'1';
-  const enc=ebEnc(); if(!enc) return;
+  const sess=ebSess(); if(!sess) return;
+  const enc=sess.encounters.find(e=>e.id===EB.activeEncId); if(!enc) return;
   enc.monsters=[...(enc.monsters||[]),{id:uid(),name,cr,count:1,hp:0,ac:0,init:0,con:10}];
-  ebSave();ebRefresh();
+  ebSave();ebRenderMonsterList();ebRenderDetail();
 }
 function ebChangeCount(mid, delta) {
-  const enc=ebEnc(); if(!enc) return;
+  const sess=ebSess(); if(!sess) return;
+  const enc=sess.encounters.find(e=>e.id===EB.activeEncId); if(!enc) return;
   enc.monsters=(enc.monsters||[]).map(m=>m.id===mid?{...m,count:Math.max(1,(m.count||1)+delta)}:m);
   ebSave();ebRenderMonsterList();
 }
-function ebRemoveMonster(mid){const enc=ebEnc();if(!enc)return;enc.monsters=(enc.monsters||[]).filter(m=>m.id!==mid);ebSave();ebRefresh();}
+function ebRemoveMonster(mid){
+  const sess=ebSess(); if(!sess) return;
+  const enc=sess.encounters.find(e=>e.id===EB.activeEncId); if(!enc) return;
+  enc.monsters=(enc.monsters||[]).filter(m=>m.id!==mid);
+  ebSave();ebRenderMonsterList();ebRenderDetail();
+}
 function ebUpdEnc(field, val) {
   const enc=ebEnc(); if(!enc) return;
   enc[field]=val;
@@ -1159,7 +1172,8 @@ function ebRenderSession(body) {
   const SCOL={Voorbereid:'#4a9eff',Actief:'#f39c12',Voltooid:'#2ecc71',Overgeslagen:'#5a5a5a'};
   const party=ebParty();
   const sessXP=(sess.encounters||[]).reduce((s,e)=>s+adjXP(e.monsters||[]),0);
-  body.innerHTML=`<div class="mb8"><label>Sessie naam</label><input style="width:100%;box-sizing:border-box" value="${esc(sess.name)}" onchange="ebUpdSess('name',this.value)"></div>
+  body.innerHTML=`<div class="mb8"><label>Campaign</label><input style="width:100%;box-sizing:border-box" value="${esc(sess.campaign||'')}" onchange="ebUpdSess('campaign',this.value)" placeholder="Curse of the Crimson Throne, Rise of the Runelords..."></div>
+  <div class="mb8"><label>Sessie naam</label><input style="width:100%;box-sizing:border-box" value="${esc(sess.name)}" onchange="ebUpdSess('name',this.value)"></div>
   <div class="mb8"><label>Datum</label><input type="date" style="width:100%;box-sizing:border-box" value="${esc(sess.date||'')}" onchange="ebUpdSess('date',this.value)"></div>
   <div class="mb8"><label>Sessie notities</label><textarea style="min-height:75px" onchange="ebUpdSess('notes',this.value)" placeholder="Verhaallijnen, hooks, recap...">${esc(sess.notes||'')}</textarea></div>
   <div style="background:var(--bg);border:1px solid var(--border);border-radius:5px;padding:9px 11px;font-size:12px">
@@ -1176,7 +1190,7 @@ function ebRenderSession(body) {
 
 function ebUpdSess(field,val){const s=ebSess();if(s){s[field]=val;ebSave();}}
 function ebSetRightTab(t){EB.rightTab=t;ebRenderRight();}
-function ebNewSess(){const s={id:uid(),name:`Sessie ${EB.sessions.length+1}`,date:new Date().toLocaleDateString('nl'),notes:'',encounters:[]};EB.sessions.unshift(s);EB.activeSessId=s.id;EB.activeEncId=null;ebSave();ebRefresh();}
+function ebNewSess(){const s={id:uid(),campaign:'',name:`Sessie ${EB.sessions.length+1}`,date:new Date().toISOString().slice(0,10),notes:'',encounters:[]};EB.sessions.unshift(s);EB.activeSessId=s.id;EB.activeEncId=null;ebSave();ebRefresh();}
 function ebDelSess(id){if(!confirm('Sessie verwijderen?'))return;EB.sessions=EB.sessions.filter(s=>s.id!==id);if(EB.activeSessId===id){EB.activeSessId=null;EB.activeEncId=null;}ebSave();ebRefresh();}
 function ebSelectSess(id){EB.activeSessId=id;EB.activeEncId=null;ebSave();ebRefresh();}
 function ebNewEnc(){if(!EB.activeSessId)return;const s=ebSess();if(!s)return;const e={id:uid(),name:`Encounter ${(s.encounters||[]).length+1}`,status:'Voorbereid',monsters:[],notes:'',loot:''};s.encounters=[...(s.encounters||[]),e];EB.activeEncId=e.id;ebSave();ebRefresh();}
@@ -1355,7 +1369,7 @@ function snNew() {
   const s = {
     id: uid(),
     title: 'Sessie ' + (SN.sessions.length + 1),
-    date: new Date().toLocaleDateString('nl'),
+    date: new Date().toISOString().slice(0,10),
     notes: '',
     quests: [],
     todo: []
